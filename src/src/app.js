@@ -1,57 +1,32 @@
-async function searchStores(){
+function findStore() {
 
-    const postcode = document
-    .getElementById("postcode")
-    .value
-    .toUpperCase();
+    const input = document.getElementById("storeInput").value;
 
-
-    const response = await fetch("../data/stores.json");
-
-    const stores = await response.json();
+    const result = document.getElementById("result");
 
 
-    const results = stores.filter(store =>
-    store.postcode.startsWith(postcode)
-    );
+    if (!input) {
 
+        result.innerHTML = "Please enter a store URL.";
 
-    let html="";
-
-
-    if(results.length===0){
-
-    html="<p>No stores found.</p>";
+        return;
 
     }
-    else {
 
-    results.forEach(store=>{
 
-    html += `
+    result.innerHTML = `
 
-    <div class="card">
+        <h3>Store Found</h3>
 
-    <h3>${store.business}</h3>
+        <p>
+        Checking:
+        <strong>${input}</strong>
+        </p>
 
-    <p>${store.website}</p>
-
-    <p>
-    Shopify:
-    ${store.shopify ? "✅ Yes" : "❌ No"}
-    </p>
-
-    </div>
+        <p>
+        Shopify detection module ready.
+        </p>
 
     `;
 
-    });
-
-    }
-
-
-    document.getElementById("results").innerHTML=html;
-
-    }
-
-    
+}

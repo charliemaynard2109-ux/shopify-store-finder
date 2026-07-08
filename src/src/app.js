@@ -1,331 +1,388 @@
+let businesses = [];
+
+
 async function searchBusinesses() {
 
-const postcode = document
-.getElementById("postcode")
-.value
-.trim()
-.toUpperCase();
+    const postcode = document
+        .getElementById("postcode")
+        .value
+        .trim()
+        .toUpperCase();
 
+    const status = document.getElementById("status");
+    const results = document.getElementById("results");
 
-const status =
-document.getElementById("status");
+    results.innerHTML = "";
+    businesses = [];
 
-const results =
-document.getElementById("results");
+    if (!postcode) {
+        status.innerHTML = "Enter a postcode prefix";
+        return;
+    }
 
 
-results.innerHTML = "";
+    status.innerHTML = "Finding postcode area...";
 
 
-if (!postcode) {
+    try {
 
-status.innerHTML =
-"Please enter a postcode prefix";
+        const geo = await fetch(
+            `https://nominatim.openstreetmap.org/search?format=json&q=${postcode}, UK`
+        );
 
-return;
 
-}
+        const geoData = await geo.json();
 
 
-status.innerHTML =
-"Finding postcode area...";
+        if (!geoData.length) {
 
+            status.innerHTML = "Postcode not found";
+            return;
 
-try {
+        }
 
 
-const geoResponse = await fetch(
+        const lat = geoData[0].lat;
+        const lon = geoData[0].lon;
 
-`https://nominatim.openstreetmap.org/search?format=json&q=${postcode}, UK`
 
-);
 
+        status.innerHTML = "Searching businesses...";
 
-const geoData =
-await geoResponse.json();
 
 
+        const query = `
 
-if (!geoData.length) {
+        [out:json];
 
-status.innerHTML =
-"Postcode not found";
+        (
+          nwr["name"]["shop"](around:5000,${lat},${lon});
+          nwr["name"]["amenity"](around:5000,${lat},${lon});
+          nwr["name"]["office"](around:5000,${lat},${lon});
+          nwr["name"]["craft"](around:5000,${lat},${lon});
+        );
 
-return;
+        out tags center;
 
-}
+        `;
 
 
 
-const lat =
-geoData[0].lat;
+        const response = await fetch(
+            "https://overpass-api.de/api/interpreter",
+            {
+                method:"POST",
+                body:query
+            }
+        );
 
-const lon =
-geoData[0].lon;
 
+        const data = await response.json();
 
 
-status.innerHTML =
-"Searching businesses...";
 
+        data.elements.forEach(place => {
 
 
-const query = `
+            const tags = place.tags || {};
 
-[out:json];
+            const website =
+                tags.website ||
+                tags["contact:website"] ||
+                tags.url ||
+                tags["contact:url"] ||
+                "";
 
-(
-nwr["name"]["shop"](around:3000,${lat},${lon});
-nwr["name"]["amenity"](around:3000,${lat},${lon});
-nwr["name"]["office"](around:3000,${lat},${lon});
-nwr["name"]["craft"](around:3000,${lat},${lon});
 
-);
+            const address = [
 
-out tags center;
+                tags["addr:housenumber"],
+                tags["addr:street"],
+                tags["addr:city"],
+                tags["addr:postcode"]
 
-`;
+            ]
+            .filter(Boolean)
+            .join(" ");
 
 
 
-const osmResponse =
-await fetch(
+            businesses.push({
 
-"https://overpass-api.de/api/interpreter",
+                name: tags.name || "Unknown",
 
-{
+                address:
+                address || "Not listed",
 
-method:"POST",
+                type:
+                tags.shop ||
+                tags.amenity ||
+                tags.office ||
+                tags.craft ||
+                "Business",
 
-body:query
+                phone:
+                tags.phone ||
+                tags["contact:phone"] ||
+                "",
 
-}
+                website: website,
 
-);
+                shopify:"Unknown"
 
+            });
 
 
-const osmData =
-await osmResponse.json();
 
+        });
 
 
-let count = 0;
 
+        displayResults();
 
 
-osmData.elements.forEach(place => {
+        status.innerHTML =
+        `Found ${businesses.length} businesses`;
 
 
-const tags =
-place.tags || {};
 
+    } catch(error) {
 
+        console.error(error);
 
-const name =
-tags.name || "";
+        status.innerHTML =
+        "Error loading businesses";
 
-
-
-const type =
-tags.shop ||
-tags.amenity ||
-tags.office ||
-tags.craft ||
-"Business";
-
-
-
-const website =
-tags.website ||
-tags["contact:website"] ||
-tags.url ||
-tags["contact:url"] ||
-"";
-
-
-
-const address = [
-
-tags["addr:housenumber"],
-tags["addr:street"],
-tags["addr:city"],
-tags["addr:postcode"]
-
-]
-
-.filter(Boolean)
-
-.join(" ");
-
-
-
-if (!name) return;
-
-
-
-count++;
-
-
-
-results.innerHTML += `
-
-<tr>
-
-<td>${name}</td>
-
-<td>${address || "Not listed"}</td>
-
-<td>${type}</td>
-
-<td>
-
-${
-website
-?
-`<a href="${website}" target="_blank">${website}</a>`
-:
-"No website"
-}
-
-</td>
-
-
-<td>
-
-Unknown
-
-</td>
-
-
-</tr>
-
-`;
-
-
-
-});
-
-
-
-status.innerHTML =
-`Found ${count} businesses`;
-
-
-
-}
-
-catch(error) {
-
-
-status.innerHTML =
-"Error: " + error.message;
-
-
-console.error(error);
-
-
-}
-
-
+    }
 
 }
 
 
 
 
-function exportCSV() {
+
+function displayResults(filter="all") {
 
 
-const rows = [];
-
-const tableRows =
-document.querySelectorAll("#results tr");
+    const table =
+    document.getElementById("results");
 
 
-if (!tableRows.length) {
+    table.innerHTML="";
 
-alert("No results to export");
 
-return;
+
+    businesses
+    .filter(item => {
+
+
+        if(filter==="shopify")
+            return item.shopify==="YES";
+
+
+        if(filter==="nonshopify")
+            return item.shopify==="NO";
+
+
+        if(filter==="nowebsite")
+            return !item.website;
+
+
+        if(filter==="unknown")
+            return item.shopify==="Unknown";
+
+
+        return true;
+
+
+    })
+    .forEach(item => {
+
+
+        table.innerHTML += `
+
+        <tr>
+
+        <td>${item.name}</td>
+
+        <td>${item.address}</td>
+
+        <td>${item.type}</td>
+
+        <td>${item.phone}</td>
+
+        <td>
+        ${
+            item.website
+            ?
+            `<a href="${item.website}" target="_blank">${item.website}</a>`
+            :
+            "No website"
+        }
+        </td>
+
+
+        <td>${item.shopify}</td>
+
+
+        </tr>
+
+        `;
+
+
+    });
+
 
 }
 
 
-rows.push([
-
-"Business",
-"Address",
-"Type",
-"Website",
-"Shopify"
-
-]);
 
 
 
-tableRows.forEach(row => {
+function filterResults(){
+
+    const filter =
+    document.getElementById("filter").value;
 
 
-const cells =
-row.querySelectorAll("td");
+    displayResults(filter);
 
-
-rows.push([
-
-cells[0]?.innerText || "",
-cells[1]?.innerText || "",
-cells[2]?.innerText || "",
-cells[3]?.innerText || "",
-cells[4]?.innerText || ""
-
-]);
-
-
-
-});
-
-
-
-const csv =
-rows.map(row =>
-
-row.map(value =>
-
-`"${value.replace(/"/g,'""')}"`
-
-).join(",")
-
-).join("\n");
-
-
-
-const blob =
-new Blob(
-
-[csv],
-
-{
-type:"text/csv"
 }
 
-);
 
 
 
-const link =
-document.createElement("a");
+
+async function scanShopify(){
 
 
-link.href =
-URL.createObjectURL(blob);
+    const status =
+    document.getElementById("status");
 
 
-link.download =
-"shopify-store-results.csv";
+    status.innerHTML =
+    "Scanning websites...";
 
 
-link.click();
+
+    for (let business of businesses){
+
+
+        if(!business.website){
+
+            business.shopify="Unknown";
+            continue;
+
+        }
+
+
+
+        try {
+
+
+            const response =
+            await fetch(business.website);
+
+
+
+            const html =
+            await response.text();
+
+
+
+            if(
+
+                html.includes("cdn.shopify.com") ||
+                html.includes("Shopify.theme") ||
+                html.includes("shopify-payment-button") ||
+                html.includes("checkout.shopify.com")
+
+            ){
+
+                business.shopify="YES";
+
+            } else {
+
+                business.shopify="NO";
+
+            }
+
+
+
+        } catch {
+
+            business.shopify="Unknown";
+
+        }
+
+
+    }
+
+
+    displayResults();
+
+
+    status.innerHTML =
+    "Shopify scan complete";
+
+
+}
+
+
+
+
+
+function exportCSV(){
+
+
+    if(!businesses.length){
+
+        alert("No results");
+        return;
+
+    }
+
+
+
+    let csv =
+
+    "Business,Address,Type,Phone,Website,Shopify\n";
+
+
+
+    businesses.forEach(item=>{
+
+
+        csv +=
+
+        `"${item.name}","${item.address}","${item.type}","${item.phone}","${item.website}","${item.shopify}"\n`;
+
+
+    });
+
+
+
+    const blob =
+    new Blob([csv],
+    {
+        type:"text/csv"
+    });
+
+
+
+    const link =
+    document.createElement("a");
+
+
+    link.href =
+    URL.createObjectURL(blob);
+
+
+    link.download =
+    "shopify-store-results.csv";
+
+
+    link.click();
 
 
 }

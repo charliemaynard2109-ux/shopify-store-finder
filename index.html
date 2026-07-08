@@ -1,40 +1,59 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Shopify Store Finder</title>
-    <link rel="stylesheet" href="src/style.css">
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+<title>Shopify Store Finder</title>
+
+<link rel="stylesheet" href="src/style.css">
+
 </head>
 
 <body>
 
 <div class="container">
 
-    <h1>Shopify Store Finder</h1>
+<h1>Shopify Store Finder</h1>
 
-    <p class="subtitle">
-        Search and analyse Shopify stores
-    </p>
-
-    <div class="search-box">
-
-        <input 
-            id="storeInput" 
-            type="text" 
-            placeholder="Enter store URL e.g. example.com"
-        >
-
-        <button onclick="findStore()">
-            Search
-        </button>
-
-    </div>
+<p>
+Find UK businesses by postcode prefix and detect Shopify websites.
+</p>
 
 
-    <div id="result" class="result">
-        Enter a Shopify store to begin.
-    </div>
+<div class="search">
+
+<input 
+id="postcode"
+placeholder="Enter postcode prefix e.g. SS6, EC1, B1"
+/>
+
+<button onclick="searchBusinesses()">
+Search
+</button>
+
+</div>
+
+
+<div id="status"></div>
+
+
+<table>
+
+<thead>
+<tr>
+<th>Business</th>
+<th>Category</th>
+<th>Website</th>
+<th>Shopify</th>
+</tr>
+</thead>
+
+<tbody id="results">
+
+</tbody>
+
+</table>
 
 
 </div>

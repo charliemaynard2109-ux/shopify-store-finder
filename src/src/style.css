@@ -1,33 +1,57 @@
-body {
-        font-family: Arial, sans-serif;
-            background:#f5f5f5;
-                padding:20px;
-                }
+async function searchStores(){
 
-                .container {
-                    max-width:600px;
-                        margin:auto;
-                            background:white;
-                                padding:25px;
-                                    border-radius:15px;
-                                    }
+    const postcode = document
+    .getElementById("postcode")
+    .value
+    .toUpperCase();
 
-                                    input {
-                                        width:100%;
-                                            padding:15px;
-                                                margin-top:15px;
-                                                    font-size:16px;
-                                                    }
 
-                                                    button {
-                                                        margin-top:15px;
-                                                            padding:15px 25px;
-                                                                cursor:pointer;
-                                                                }
+    const response = await fetch("../data/stores.json");
 
-                                                                .card {
-                                                                    margin-top:15px;
-                                                                        padding:15px;
-                                                                            background:#eee;
-                                                                                border-radius:10px;
-                                                                                }
+    const stores = await response.json();
+
+
+    const results = stores.filter(store =>
+    store.postcode.startsWith(postcode)
+    );
+
+
+    let html="";
+
+
+    if(results.length===0){
+
+    html="<p>No stores found.</p>";
+
+    }
+    else {
+
+    results.forEach(store=>{
+
+    html += `
+
+    <div class="card">
+
+    <h3>${store.business}</h3>
+
+    <p>${store.website}</p>
+
+    <p>
+    Shopify:
+    ${store.shopify ? "✅ Yes" : "❌ No"}
+    </p>
+
+    </div>
+
+    `;
+
+    });
+
+    }
+
+
+    document.getElementById("results").innerHTML=html;
+
+    }
+
+    

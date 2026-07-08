@@ -53,3 +53,5 @@ async function searchStores(){
     document.getElementById("results").innerHTML=html;
 
     }
+
+    

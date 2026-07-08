@@ -1,32 +1,166 @@
-function findStore() {
+async function searchBusinesses(){
 
-    const input = document.getElementById("storeInput").value;
-
-    const result = document.getElementById("result");
-
-
-    if (!input) {
-
-        result.innerHTML = "Please enter a store URL.";
-
-        return;
-
-    }
+const prefix =
+document.getElementById("postcode").value.trim();
 
 
-    result.innerHTML = `
+const status =
+document.getElementById("status");
 
-        <h3>Store Found</h3>
 
-        <p>
-        Checking:
-        <strong>${input}</strong>
-        </p>
+const results =
+document.getElementById("results");
 
-        <p>
-        Shopify detection module ready.
-        </p>
 
-    `;
+if(!prefix){
+
+status.innerHTML="Enter a postcode prefix";
+
+return;
+
+}
+
+
+status.innerHTML="Searching OpenStreetMap...";
+
+results.innerHTML="";
+
+
+// UK postcode prefix approximate search
+const geocodeURL =
+`https://nominatim.openstreetmap.org/search?format=json&q=${prefix},UK`;
+
+
+const geoResponse =
+await fetch(geocodeURL);
+
+
+const geo =
+await geoResponse.json();
+
+
+if(!geo.length){
+
+status.innerHTML="Postcode not found";
+
+return;
+
+}
+
+
+const lat =
+geo[0].lat;
+
+const lon =
+geo[0].lon;
+
+
+
+const query = `
+
+[out:json];
+
+(
+node["shop"](around:5000,${lat},${lon});
+node["amenity"="restaurant"](around:5000,${lat},${lon});
+node["amenity"="cafe"](around:5000,${lat},${lon});
+way["shop"](around:5000,${lat},${lon});
+
+);
+
+out center;
+
+`;
+
+
+
+const response =
+await fetch(
+"https://overpass-api.de/api/interpreter",
+{
+method:"POST",
+body:query
+});
+
+
+const data =
+await response.json();
+
+
+
+status.innerHTML =
+`Found ${data.elements.length} businesses`;
+
+
+
+data.elements.forEach(place=>{
+
+
+const tags =
+place.tags || {};
+
+
+const name =
+tags.name || "Unknown";
+
+
+const website =
+tags.website || "";
+
+
+const type =
+tags.shop ||
+tags.amenity ||
+"Business";
+
+
+
+let shopify =
+"Unknown";
+
+
+if(
+website.includes("shopify")
+){
+
+shopify="Likely Shopify";
+
+}
+
+
+
+results.innerHTML += `
+
+<tr>
+
+<td>${name}</td>
+
+<td>${type}</td>
+
+<td>
+${website ?
+`<a href="${website}" target="_blank">${website}</a>`
+:
+"No website"}
+</td>
+
+
+<td class="${
+shopify==="Likely Shopify"
+?
+"shopify"
+:
+"no"
+}">
+${shopify}
+</td>
+
+
+</tr>
+
+`;
+
+});
+
 
 }

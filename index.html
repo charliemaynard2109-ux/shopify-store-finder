@@ -4,6 +4,7 @@
 <head>
 
 <meta charset="UTF-8">
+
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 
 <title>Shopify Store Finder</title>
@@ -21,9 +22,11 @@
 
 <h1>Shopify Store Finder</h1>
 
+
 <p>
 Find UK businesses by postcode prefix and detect Shopify websites.
 </p>
+
 
 
 <div class="search">
@@ -44,9 +47,24 @@ Search
 </div>
 
 
+
 <div id="status">
 Ready
 </div>
+
+
+
+<br>
+
+
+<button onclick="exportCSV()">
+Export CSV
+</button>
+
+
+
+<br><br>
+
 
 
 <table>
@@ -69,12 +87,14 @@ Ready
 </thead>
 
 
+
 <tbody id="results">
 
 </tbody>
 
 
 </table>
+
 
 
 </div>
@@ -85,5 +105,6 @@ Ready
 
 
 </body>
+
 
 </html>

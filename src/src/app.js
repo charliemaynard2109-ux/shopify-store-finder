@@ -3,11 +3,15 @@ async function searchBusinesses() {
 const postcode = document
 .getElementById("postcode")
 .value
-.trim();
+.trim()
+.toUpperCase();
 
 
-const status = document.getElementById("status");
-const results = document.getElementById("results");
+const status =
+document.getElementById("status");
+
+const results =
+document.getElementById("results");
 
 
 results.innerHTML = "";
@@ -15,14 +19,16 @@ results.innerHTML = "";
 
 if (!postcode) {
 
-status.innerHTML = "Please enter a postcode prefix";
+status.innerHTML =
+"Please enter a postcode prefix";
 
 return;
 
 }
 
 
-status.innerHTML = "Finding postcode location...";
+status.innerHTML =
+"Finding postcode area...";
 
 
 try {
@@ -35,14 +41,15 @@ const geoResponse = await fetch(
 );
 
 
-const geoData = await geoResponse.json();
+const geoData =
+await geoResponse.json();
 
 
 
 if (!geoData.length) {
 
 status.innerHTML =
-"Could not find postcode area";
+"Postcode not found";
 
 return;
 
@@ -50,13 +57,16 @@ return;
 
 
 
-const lat = geoData[0].lat;
-const lon = geoData[0].lon;
+const lat =
+geoData[0].lat;
+
+const lon =
+geoData[0].lon;
 
 
 
 status.innerHTML =
-"Searching OpenStreetMap businesses...";
+"Searching businesses...";
 
 
 
@@ -65,24 +75,21 @@ const query = `
 [out:json];
 
 (
-node["shop"](around:5000,${lat},${lon});
-way["shop"](around:5000,${lat},${lon});
-
-node["amenity"="restaurant"](around:5000,${lat},${lon});
-way["amenity"="restaurant"](around:5000,${lat},${lon});
-
-node["amenity"="cafe"](around:5000,${lat},${lon});
-way["amenity"="cafe"](around:5000,${lat},${lon});
+nwr["name"]["shop"](around:3000,${lat},${lon});
+nwr["name"]["amenity"](around:3000,${lat},${lon});
+nwr["name"]["office"](around:3000,${lat},${lon});
+nwr["name"]["craft"](around:3000,${lat},${lon});
 
 );
 
-out center;
+out tags center;
 
 `;
 
 
 
-const osmResponse = await fetch(
+const osmResponse =
+await fetch(
 
 "https://overpass-api.de/api/interpreter",
 
@@ -98,35 +105,66 @@ body:query
 
 
 
-const osmData = await osmResponse.json();
+const osmData =
+await osmResponse.json();
 
 
 
-status.innerHTML =
-`Found ${osmData.elements.length} businesses`;
+let count = 0;
 
 
 
 osmData.elements.forEach(place => {
 
 
-const tags = place.tags || {};
+const tags =
+place.tags || {};
+
 
 
 const name =
-tags.name || "Unnamed business";
+tags.name || "";
 
 
-const category =
+
+const type =
 tags.shop ||
 tags.amenity ||
+tags.office ||
+tags.craft ||
 "Business";
+
 
 
 const website =
 tags.website ||
 tags["contact:website"] ||
+tags.url ||
+tags["contact:url"] ||
 "";
+
+
+
+const address = [
+
+tags["addr:housenumber"],
+tags["addr:street"],
+tags["addr:city"],
+tags["addr:postcode"]
+
+]
+
+.filter(Boolean)
+
+.join(" ");
+
+
+
+if (!name) return;
+
+
+
+count++;
 
 
 
@@ -136,9 +174,12 @@ results.innerHTML += `
 
 <td>${name}</td>
 
-<td>${category}</td>
+<td>${address || "Not listed"}</td>
+
+<td>${type}</td>
 
 <td>
+
 ${
 website
 ?
@@ -146,11 +187,14 @@ website
 :
 "No website"
 }
+
 </td>
 
 
 <td>
-Not checked
+
+Unknown
+
 </td>
 
 
@@ -158,7 +202,15 @@ Not checked
 
 `;
 
+
+
 });
+
+
+
+status.innerHTML =
+`Found ${count} businesses`;
+
 
 
 }
@@ -175,6 +227,8 @@ console.error(error);
 
 }
 
+
+
 }
 
 
@@ -185,10 +239,8 @@ function exportCSV() {
 
 const rows = [];
 
-
 const tableRows =
 document.querySelectorAll("#results tr");
-
 
 
 if (!tableRows.length) {
@@ -200,11 +252,11 @@ return;
 }
 
 
-
 rows.push([
 
 "Business",
-"Category",
+"Address",
+"Type",
 "Website",
 "Shopify"
 
@@ -224,20 +276,23 @@ rows.push([
 cells[0]?.innerText || "",
 cells[1]?.innerText || "",
 cells[2]?.innerText || "",
-cells[3]?.innerText || ""
+cells[3]?.innerText || "",
+cells[4]?.innerText || ""
 
 ]);
+
 
 
 });
 
 
 
-const csv = rows.map(row =>
+const csv =
+rows.map(row =>
 
-row.map(item =>
+row.map(value =>
 
-`"${item.replace(/"/g,'""')}"`
+`"${value.replace(/"/g,'""')}"`
 
 ).join(",")
 
@@ -258,16 +313,12 @@ type:"text/csv"
 
 
 
-const url =
-URL.createObjectURL(blob);
-
-
-
 const link =
 document.createElement("a");
 
 
-link.href = url;
+link.href =
+URL.createObjectURL(blob);
 
 
 link.download =

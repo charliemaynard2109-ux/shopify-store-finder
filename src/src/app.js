@@ -1,58 +1,50 @@
 async function searchBusinesses(){
 
-const prefix =
-document.getElementById("postcode").value.trim();
+const prefix = document.getElementById("postcode").value.trim();
+const status = document.getElementById("status");
+const results = document.getElementById("results");
 
-
-const status =
-document.getElementById("status");
-
-
-const results =
-document.getElementById("results");
-
+results.innerHTML = "";
 
 if(!prefix){
-
-status.innerHTML="Enter a postcode prefix";
-
-return;
-
+    status.innerHTML = "Enter a postcode prefix";
+    return;
 }
 
-
-status.innerHTML="Searching OpenStreetMap...";
-
-results.innerHTML="";
+status.innerHTML = "Finding postcode location...";
 
 
-// UK postcode prefix approximate search
-const geocodeURL =
-`https://nominatim.openstreetmap.org/search?format=json&q=${prefix},UK`;
+try {
+
+const geoURL =
+`https://nominatim.openstreetmap.org/search?format=json&q=${prefix}, UK`;
 
 
-const geoResponse =
-await fetch(geocodeURL);
+const geoResponse = await fetch(geoURL);
 
 
-const geo =
-await geoResponse.json();
+const geo = await geoResponse.json();
+
+
+console.log("Geocode result:", geo);
 
 
 if(!geo.length){
 
-status.innerHTML="Postcode not found";
+status.innerHTML =
+"No location found for " + prefix;
 
 return;
 
 }
 
 
-const lat =
-geo[0].lat;
+const lat = geo[0].lat;
+const lon = geo[0].lon;
 
-const lon =
-geo[0].lon;
+
+status.innerHTML =
+`Location found: ${lat}, ${lon}. Searching businesses...`;
 
 
 
@@ -61,10 +53,10 @@ const query = `
 [out:json];
 
 (
-node["shop"](around:5000,${lat},${lon});
-node["amenity"="restaurant"](around:5000,${lat},${lon});
-node["amenity"="cafe"](around:5000,${lat},${lon});
-way["shop"](around:5000,${lat},${lon});
+node["shop"](around:3000,${lat},${lon});
+node["amenity"="restaurant"](around:3000,${lat},${lon});
+node["amenity"="cafe"](around:3000,${lat},${lon});
+way["shop"](around:3000,${lat},${lon});
 
 );
 
@@ -80,11 +72,15 @@ await fetch(
 {
 method:"POST",
 body:query
-});
+}
+);
 
 
 const data =
 await response.json();
+
+
+console.log("OSM result:", data);
 
 
 
@@ -96,71 +92,38 @@ status.innerHTML =
 data.elements.forEach(place=>{
 
 
-const tags =
-place.tags || {};
-
-
-const name =
-tags.name || "Unknown";
-
-
-const website =
-tags.website || "";
-
-
-const type =
-tags.shop ||
-tags.amenity ||
-"Business";
-
-
-
-let shopify =
-"Unknown";
-
-
-if(
-website.includes("shopify")
-){
-
-shopify="Likely Shopify";
-
-}
-
+const tags = place.tags || {};
 
 
 results.innerHTML += `
 
 <tr>
 
-<td>${name}</td>
+<td>${tags.name || "Unnamed business"}</td>
 
-<td>${type}</td>
+<td>${tags.shop || tags.amenity || ""}</td>
 
-<td>
-${website ?
-`<a href="${website}" target="_blank">${website}</a>`
-:
-"No website"}
-</td>
+<td>${tags.website || "No website"}</td>
 
-
-<td class="${
-shopify==="Likely Shopify"
-?
-"shopify"
-:
-"no"
-}">
-${shopify}
-</td>
-
+<td>Checking...</td>
 
 </tr>
 
 `;
 
 });
+
+
+}
+
+catch(error){
+
+console.error(error);
+
+status.innerHTML =
+"Error: " + error.message;
+
+}
 
 
 }

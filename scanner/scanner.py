@@ -6,7 +6,6 @@ import time
 from detector import detect_platform
 
 
-# CHANGE THIS EACH RUN
 POSTCODE_AREA = "CM"
 
 
@@ -35,26 +34,14 @@ out center;
 """
 
 
-    try:
-
-        response = requests.post(
-            "https://overpass-api.de/api/interpreter",
-            data=query,
-            timeout=150
-        )
-
-        data=response.json()
+    response = requests.post(
+        "https://overpass-api.de/api/interpreter",
+        data=query,
+        timeout=150
+    )
 
 
-    except Exception as e:
-
-        print(
-            "Overpass failed:",
-            e
-        )
-
-        return []
-
+    data=response.json()
 
 
     businesses=[]
@@ -63,57 +50,52 @@ out center;
     for item in data.get("elements", []):
 
 
-        tags=item.get(
-            "tags",
-            {}
-        )
+        tags=item.get("tags", {})
 
 
-        name=tags.get(
-            "name"
-        )
+        name=tags.get("name")
 
 
-        website=(
-            tags.get("website")
-            or
-            tags.get("contact:website")
-        )
-
-
-        if not name or not website:
-
+        if not name:
             continue
 
 
-
-        print(
-            "Checking",
-            name
+        website = (
+            tags.get("website")
+            or
+            tags.get("contact:website")
+            or
+            ""
         )
 
 
-        platform=detect_platform(
-            website
-        )
+        platform="Not Checked"
 
+
+        if website:
+
+            platform=detect_platform(
+                website
+            )
 
 
         businesses.append({
 
-            "business":name,
+            "business": name,
 
-            "postcode_area":area,
+            "postcode_area": area,
 
-            "website":website,
+            "website": website,
 
-            "platform":platform
+            "platform": platform
 
         })
 
 
-        time.sleep(0.5)
-
+        print(
+            name,
+            platform
+        )
 
 
     return businesses
@@ -122,59 +104,21 @@ out center;
 
 
 
-def save_results(new_results):
-
-
-    file="../database.json"
-
-
-
-    if os.path.exists(file):
-
-        with open(file) as f:
-
-            database=json.load(f)
-
-
-    else:
-
-        database=[]
-
-
-
-    existing={
-        x["website"]
-        for x in database
-    }
-
-
-
-    for item in new_results:
-
-        if item["website"] not in existing:
-
-            database.append(item)
-
+def save_results(results):
 
 
     with open(
-        file,
+        "../database.json",
         "w",
         encoding="utf-8"
     ) as f:
 
         json.dump(
-            database,
+            results,
             f,
-            indent=2
+            indent=2,
+            ensure_ascii=False
         )
-
-
-
-    print(
-        "Database total:",
-        len(database)
-    )
 
 
 
@@ -188,11 +132,10 @@ if __name__=="__main__":
     )
 
 
-    save_results(
-        results
-    )
+    save_results(results)
 
 
     print(
-        "Finished"
+        "Saved:",
+        len(results)
     )

@@ -1,81 +1,124 @@
-async function searchBusinesses() {
-
-    const postcode = document
-        .getElementById("postcode")
-        .value
-        .toUpperCase()
-        .trim();
-
-    const results = document.getElementById("results");
+let businesses=[];
 
 
-    try {
-
-        const response = await fetch("./businesses.json");
-
-        const businesses = await response.json();
-
-
-        const matches = businesses.filter(business =>
-            business.postcode.startsWith(postcode)
-        );
+fetch("database.json")
+.then(res=>res.json())
+.then(data=>{
+businesses=data;
+});
 
 
-        results.innerHTML = "";
+function searchBusinesses(){
 
 
-        if (matches.length === 0) {
-
-            results.innerHTML = `
-            <tr>
-                <td colspan="3">
-                No businesses found
-                </td>
-            </tr>
-            `;
-
-            return;
-
-        }
+let postcode=document
+.getElementById("postcode")
+.value
+.toUpperCase();
 
 
-        matches.forEach(business => {
-
-            results.innerHTML += `
-
-            <tr>
-
-            <td>${business.name}</td>
-
-            <td>
-            <a href="${business.website}" target="_blank">
-            ${business.website}
-            </a>
-            </td>
-
-            <td>
-            Not checked yet
-            </td>
-
-            </tr>
-
-            `;
-
-        });
+let platform=document
+.getElementById("platform")
+.value;
 
 
-    } catch(error) {
 
-        results.innerHTML = `
-        <tr>
-        <td colspan="3">
-        Error loading business database
-        </td>
-        </tr>
-        `;
+let results=businesses.filter(x=>{
 
-        console.log(error);
 
-    }
+let postcodeMatch =
+x.postcode &&
+x.postcode.startsWith(postcode);
+
+
+
+let platformMatch =
+platform==="all" ||
+x.platform===platform;
+
+
+
+return postcodeMatch && platformMatch;
+
+
+});
+
+
+display(results);
+
+
+}
+
+
+
+function display(data){
+
+
+let table=document.getElementById("results");
+
+table.innerHTML="";
+
+
+data.forEach(x=>{
+
+
+table.innerHTML += `
+
+<tr>
+
+<td>${x.business}</td>
+
+<td>${x.address || ""}</td>
+
+<td>
+<a href="${x.website}" target="_blank">
+${x.website}
+</a>
+</td>
+
+<td>${x.platform}</td>
+
+</tr>
+
+
+`;
+
+
+});
+
+
+}
+
+
+
+function downloadCSV(){
+
+
+let csv="Business,Address,Website,Platform\n";
+
+
+businesses.forEach(x=>{
+
+
+csv += `"${x.business}","${x.address}","${x.website}","${x.platform}"\n`;
+
+
+});
+
+
+let blob=new Blob([csv],{type:"text/csv"});
+
+
+let url=URL.createObjectURL(blob);
+
+
+let a=document.createElement("a");
+
+a.href=url;
+
+a.download="businesses.csv";
+
+a.click();
+
 
 }

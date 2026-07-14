@@ -1,7 +1,22 @@
 [
- {
-  "name":"Example Clothing",
-  "postcode":"CM2",
-  "website":"https://example.com"
- }
+  {
+    "name": "Example Clothing Store",
+    "postcode": "CM2",
+    "website": "https://example.com"
+  },
+  {
+    "name": "Example Furniture Shop",
+    "postcode": "SS1",
+    "website": "https://example.com"
+  },
+  {
+    "name": "Example Gifts",
+    "postcode": "CM2",
+    "website": "https://example.com"
+  },
+  {
+    "name": "Example Sports Store",
+    "postcode": "RM1",
+    "website": "https://example.com"
+  }
 ]

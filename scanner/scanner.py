@@ -1,47 +1,32 @@
 import requests
 import json
+import os
 import time
+
 from detector import detect_platform
 
 
-# UK postcode prefixes
-POSTCODES = [
-    "AB","AL","B","BA","BB","BD","BH","BL","BN","BR","BS",
-    "BT","CA","CB","CF","CH","CM","CO","CR","CT","CV",
-    "CW","DA","DD","DE","DG","DH","DL","DN","DT","DY",
-    "E","EC","EH","EN","EX","FK","FY","G","GL","GU",
-    "HA","HD","HG","HP","HR","HS","HX","IG","IP","IV",
-    "KA","KT","KW","KY","L","LA","LD","LE","LL","LN",
-    "LS","LU","M","ME","MK","ML","N","NE","NG","NN",
-    "NP","NR","NW","OL","OX","PA","PE","PH","PL",
-    "PO","PR","RG","RH","RM","S","SA","SE","SG",
-    "SK","SL","SM","SN","SO","SP","SR","SS","ST",
-    "SW","SY","TA","TD","TF","TN","TQ","TR","TS",
-    "TW","UB","WA","WC","WD","WF","WN","WR","WS",
-    "WV","YO","ZE"
-]
+# CHANGE THIS EACH RUN
+POSTCODE_AREA = "CM"
 
 
-def find_businesses(prefix):
+def get_businesses(area):
 
-    print("Searching:", prefix)
+    print("Scanning:", area)
 
 
     query = f"""
 
-[out:json][timeout:60];
+[out:json][timeout:120];
 
-area["ISO3166-1"="GB"]->.uk;
+area["name"="{area}"]->.search;
 
 (
-node["shop"](area.uk);
-way["shop"](area.uk);
+node["shop"](area.search);
+way["shop"](area.search);
 
-node["craft"](area.uk);
-way["craft"](area.uk);
-
-node["office"](area.uk);
-way["office"](area.uk);
+node["craft"](area.search);
+way["craft"](area.search);
 
 );
 
@@ -55,16 +40,19 @@ out center;
         response = requests.post(
             "https://overpass-api.de/api/interpreter",
             data=query,
-            timeout=120
+            timeout=150
         )
-
 
         data=response.json()
 
 
     except Exception as e:
 
-        print("OSM error:", e)
+        print(
+            "Overpass failed:",
+            e
+        )
+
         return []
 
 
@@ -75,10 +63,15 @@ out center;
     for item in data.get("elements", []):
 
 
-        tags=item.get("tags", {})
+        tags=item.get(
+            "tags",
+            {}
+        )
 
 
-        name=tags.get("name")
+        name=tags.get(
+            "name"
+        )
 
 
         website=(
@@ -88,43 +81,33 @@ out center;
         )
 
 
-        if not name:
-
-            continue
-
-
-        if not website:
+        if not name or not website:
 
             continue
 
 
 
         print(
-            "Checking:",
-            name,
-            website
+            "Checking",
+            name
         )
 
 
-        platform=detect_platform(website)
+        platform=detect_platform(
+            website
+        )
 
 
 
         businesses.append({
 
-            "business": name,
+            "business":name,
 
-            "address":
-            tags.get("addr:street",""),
+            "postcode_area":area,
 
-            "postcode":
-            prefix,
+            "website":website,
 
-            "website":
-            website,
-
-            "platform":
-            platform
+            "platform":platform
 
         })
 
@@ -139,53 +122,77 @@ out center;
 
 
 
-def main():
+def save_results(new_results):
 
 
-    all_businesses=[]
+    file="../database.json"
 
 
-    for postcode in POSTCODES:
+
+    if os.path.exists(file):
+
+        with open(file) as f:
+
+            database=json.load(f)
 
 
-        results=find_businesses(postcode)
+    else:
+
+        database=[]
 
 
-        all_businesses.extend(results)
+
+    existing={
+        x["website"]
+        for x in database
+    }
 
 
-        print(
-            postcode,
-            "found",
-            len(results)
-        )
+
+    for item in new_results:
+
+        if item["website"] not in existing:
+
+            database.append(item)
 
 
 
     with open(
-        "../database.json",
+        file,
         "w",
         encoding="utf-8"
-    ) as file:
-
+    ) as f:
 
         json.dump(
-            all_businesses,
-            file,
-            indent=2,
-            ensure_ascii=False
+            database,
+            f,
+            indent=2
         )
 
 
 
     print(
-        "COMPLETE:",
-        len(all_businesses),
-        "businesses saved"
+        "Database total:",
+        len(database)
     )
+
+
 
 
 
 if __name__=="__main__":
 
-    main()
+
+    results=get_businesses(
+        POSTCODE_AREA
+    )
+
+
+    save_results(
+        results
+    )
+
+
+    print(
+        "Finished"
+    )

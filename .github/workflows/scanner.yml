@@ -1,6 +1,7 @@
 name: Update Business Database
 
 on:
+
   workflow_dispatch:
 
   schedule:
@@ -8,6 +9,7 @@ on:
 
 
 permissions:
+
   contents: write
 
 
@@ -22,6 +24,7 @@ jobs:
 
     steps:
 
+
       - name: Checkout repository
         uses: actions/checkout@v4
 
@@ -32,19 +35,9 @@ jobs:
           python-version: "3.x"
 
 
-      - name: Install Python packages
+      - name: Install packages
         run: |
           pip install -r scanner/requirements.txt
-
-
-      - name: Download postcode data
-        run: |
-          python scanner/download_postcodes.py
-
-
-      - name: Extract postcode data
-        run: |
-          python scanner/extract_postcodes.py
 
 
       - name: Run scanner
@@ -53,13 +46,15 @@ jobs:
           python scanner.py
 
 
-      - name: Save updated database
+      - name: Save database
         run: |
+
           git config user.name "github-actions"
+
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
 
           git add database.json
 
-          git commit -m "Update business database" || echo "No changes to commit"
+          git commit -m "Update business database" || echo "No changes"
 
           git push

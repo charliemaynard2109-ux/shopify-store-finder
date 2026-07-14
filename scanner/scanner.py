@@ -1,6 +1,5 @@
 import requests
 import json
-import os
 import time
 
 from detector import detect_platform
@@ -15,33 +14,58 @@ def get_businesses(area):
 
 
     query = f"""
-
-[out:json][timeout:120];
-
-area["name"="{area}"]->.search;
+[out:json][timeout:60];
 
 (
-node["shop"](area.search);
-way["shop"](area.search);
-
-node["craft"](area.search);
-way["craft"](area.search);
-
+  node["shop"](50.0,-6.0,58.7,2.0);
+  way["shop"](50.0,-6.0,58.7,2.0);
 );
 
 out center;
-
 """
 
 
-    response = requests.post(
-        "https://overpass-api.de/api/interpreter",
-        data=query,
-        timeout=150
-    )
+    try:
+
+        response = requests.post(
+            "https://overpass.kumi.systems/api/interpreter",
+            data=query,
+            headers={
+                "User-Agent":"ShopifyFinder/1.0"
+            },
+            timeout=120
+        )
 
 
-    data=response.json()
+        print(
+            "Overpass status:",
+            response.status_code
+        )
+
+
+        if response.status_code != 200:
+
+            print(
+                response.text[:500]
+            )
+
+            return []
+
+
+
+        data=response.json()
+
+
+
+    except Exception as e:
+
+        print(
+            "Overpass error:",
+            e
+        )
+
+        return []
+
 
 
     businesses=[]
@@ -50,14 +74,20 @@ out center;
     for item in data.get("elements", []):
 
 
-        tags=item.get("tags", {})
+        tags=item.get(
+            "tags",
+            {}
+        )
 
 
-        name=tags.get("name")
+        name=tags.get(
+            "name"
+        )
 
 
         if not name:
             continue
+
 
 
         website = (
@@ -69,7 +99,9 @@ out center;
         )
 
 
+
         platform="Not Checked"
+
 
 
         if website:
@@ -79,15 +111,16 @@ out center;
             )
 
 
+
         businesses.append({
 
-            "business": name,
+            "business":name,
 
-            "postcode_area": area,
+            "postcode_area":area,
 
-            "website": website,
+            "website":website,
 
-            "platform": platform
+            "platform":platform
 
         })
 
@@ -96,6 +129,10 @@ out center;
             name,
             platform
         )
+
+
+        time.sleep(0.2)
+
 
 
     return businesses
@@ -111,11 +148,12 @@ def save_results(results):
         "../database.json",
         "w",
         encoding="utf-8"
-    ) as f:
+    ) as file:
+
 
         json.dump(
             results,
-            f,
+            file,
             indent=2,
             ensure_ascii=False
         )
@@ -132,10 +170,13 @@ if __name__=="__main__":
     )
 
 
-    save_results(results)
+    save_results(
+        results
+    )
 
 
     print(
-        "Saved:",
-        len(results)
+        "Saved",
+        len(results),
+        "businesses"
     )

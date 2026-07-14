@@ -1,74 +1,48 @@
 <!DOCTYPE html>
-<html lang="en">
-
+<html>
 <head>
-
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-
-<title>Shopify Store Finder</title>
-
+<title>Shopify Business Finder</title>
 <link rel="stylesheet" href="style.css">
-
 </head>
-
 
 <body>
 
 <div class="container">
 
-<h1>Shopify Store Finder</h1>
+<h1>Shopify Business Finder</h1>
 
-<p>
-Find businesses by postcode prefix and identify Shopify websites.
-</p>
+<p>Search UK businesses by postcode prefix</p>
 
+<input id="postcode" placeholder="Example: CM1">
 
-<div class="search-box">
+<select id="platform">
+<option value="all">All Platforms</option>
+<option value="Shopify">Shopify</option>
+<option value="WooCommerce">WooCommerce</option>
+<option value="Magento">Magento</option>
+<option value="Wix">Wix</option>
+</select>
 
-<input 
-id="postcode"
-type="text"
-placeholder="Enter postcode prefix e.g. CM2"
->
+<button onclick="searchBusinesses()">Search</button>
 
-
-<button onclick="searchBusinesses()">
-Search
-</button>
-
-</div>
+<button onclick="downloadCSV()">Export CSV</button>
 
 
 <table>
 
 <thead>
-
 <tr>
-
 <th>Business</th>
-
+<th>Address</th>
 <th>Website</th>
-
-<th>Shopify</th>
-
+<th>Platform</th>
 </tr>
-
 </thead>
-
 
 <tbody id="results">
 
-<tr>
-
-<td colspan="3">
-Enter a postcode to search
-</td>
-
-</tr>
-
 </tbody>
-
 
 </table>
 
@@ -79,5 +53,4 @@ Enter a postcode to search
 <script src="app.js"></script>
 
 </body>
-
 </html>

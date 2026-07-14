@@ -6,7 +6,18 @@ from bs4 import BeautifulSoup
 from detector import detect_platform
 
 
-TARGET_DISTRICT = "CM1"
+import os
+
+from postcode_batches import POSTCODE_BATCHES
+
+
+BATCH = os.environ.get(
+    "BATCH",
+    "batch1"
+)
+
+
+TARGET_DISTRICTS = POSTCODE_BATCHES[BATCH]
 
 
 SEARCH_TERMS = [

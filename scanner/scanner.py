@@ -6,155 +6,145 @@ from ddgs import DDGS
 from detector import detect_platform
 
 
+
 TARGET_DISTRICT = "CM1"
 
 
-SEARCH_TERMS = [
 
-    "clothing shop",
-    "boutique",
-    "gift shop",
-    "furniture shop",
-    "beauty salon",
-    "jewellery",
-    "homeware",
-    "sports shop",
-    "pet shop",
-    "food shop",
-    "independent shop",
-    "online store"
+BAD_DOMAINS = [
+
+    "facebook.com",
+
+    "instagram.com",
+
+    "tripadvisor.com",
+
+    "yell.com",
+
+    "yelp.com",
+
+    "google.com",
+
+    "linkedin.com",
+
+    "wikipedia.org"
 
 ]
 
 
 
+SEARCH_TERMS = [
+
+    "shop",
+
+    "boutique",
+
+    "store",
+
+    "online shop",
+
+    "gift shop",
+
+    "clothing",
+
+    "jewellery",
+
+    "furniture",
+
+    "beauty",
+
+    "pet shop"
+
+]
+
+
+
+
+
+def valid_domain(url):
+
+
+    for bad in BAD_DOMAINS:
+
+        if bad in url:
+
+            return False
+
+
+    return True
+
+
+
+
+
 def find_websites():
 
-    websites = {}
+
+    websites={}
 
 
-    print(
-        "Searching:",
-        TARGET_DISTRICT
-    )
+    with DDGS() as ddgs:
 
 
-    try:
-
-        with DDGS() as ddgs:
+        for term in SEARCH_TERMS:
 
 
-            for term in SEARCH_TERMS:
+            query=f"{TARGET_DISTRICT} {term} shop"
 
 
-                query = (
-                    TARGET_DISTRICT
-                    +
-                    " "
-                    +
-                    term
-                    +
-                    " website"
+            print(
+                query
+            )
+
+
+            results=list(
+
+                ddgs.text(
+
+                    query,
+
+                    max_results=20
+
+                )
+
+            )
+
+
+
+            for result in results:
+
+
+                url=(
+
+                    result.get("href")
+
+                    or
+
+                    result.get("url")
+
                 )
 
 
-                print(
-                    "Query:",
-                    query
+                title=result.get(
+
+                    "title",
+
+                    "Unknown"
+
                 )
 
 
-                try:
+                if url and url.startswith("http"):
 
 
-                    results = list(
-                        ddgs.text(
-                            query,
-                            max_results=20
-                        )
-                    )
+                    if valid_domain(url):
 
-
-                    print(
-                        "Results returned:",
-                        len(results)
-                    )
+                        websites[url]=title
 
 
 
-                    for result in results:
+            time.sleep(1)
 
-
-                        url = (
-
-                            result.get("href")
-
-                            or
-
-                            result.get("url")
-
-                        )
-
-
-                        title = (
-
-                            result.get("title")
-
-                            or
-
-                            "Unknown Business"
-
-                        )
-
-
-                        if url and url.startswith("http"):
-
-
-                            websites[url] = title
-
-
-
-                except Exception as e:
-
-
-                    print(
-                        "Search error:",
-                        e
-                    )
-
-
-
-                time.sleep(1)
-
-
-
-    except Exception as e:
-
-
-        print(
-            "DDGS error:",
-            e
-        )
-
-
-
-    print(
-        "Websites found:",
-        len(websites)
-    )
-
-
-
-    print(
-        "Sample websites:"
-    )
-
-
-    for site in list(websites.keys())[:10]:
-
-        print(
-            site
-        )
 
 
     return websites
@@ -163,56 +153,79 @@ def find_websites():
 
 
 
-def scan_websites(websites):
+def ecommerce_score(platform):
 
 
-    results=[]
+    if platform=="Shopify":
+
+        return 100
+
+
+    if platform=="WooCommerce":
+
+        return 90
+
+
+    if platform in [
+
+        "Magento",
+
+        "Wix",
+
+        "Squarespace"
+
+    ]:
+
+        return 70
 
 
 
-    for url, title in websites.items():
+    return 20
+
+
+
+
+
+def main():
+
+
+    websites=find_websites()
+
+
+    output=[]
+
+
+
+    for url,title in websites.items():
 
 
         print(
-            "Checking:",
+            "Scanning",
             url
         )
 
 
-        platform="Unknown"
+        platform=detect_platform(
+            url
+        )
 
 
-
-        try:
-
-
-            platform = detect_platform(
-                url
-            )
+        score=ecommerce_score(
+            platform
+        )
 
 
-        except Exception as e:
+        output.append({
 
+            "business":title,
 
-            print(
-                "Detector error:",
-                e
-            )
+            "website":url,
 
+            "postcode_area":TARGET_DISTRICT,
 
-            platform="Error"
+            "platform":platform,
 
-
-
-        results.append({
-
-            "business": title,
-
-            "postcode_area": TARGET_DISTRICT,
-
-            "website": url,
-
-            "platform": platform
+            "score":score
 
         })
 
@@ -222,13 +235,15 @@ def scan_websites(websites):
 
 
 
-    return results
 
+    output.sort(
 
+        key=lambda x:x["score"],
 
+        reverse=True
 
+    )
 
-def save_database(results):
 
 
     with open(
@@ -237,49 +252,36 @@ def save_database(results):
 
         "w",
 
-        encoding="utf-8"
+        encoding="utf8"
 
-    ) as file:
+    ) as f:
 
 
         json.dump(
 
-            results,
+            output,
 
-            file,
+            f,
 
-            indent=2,
-
-            ensure_ascii=False
+            indent=2
 
         )
 
-
-
-
-
-if __name__ == "__main__":
-
-
-    websites = find_websites()
-
-
-    results = scan_websites(
-        websites
-    )
-
-
-    save_database(
-        results
-    )
 
 
     print(
 
         "Saved",
 
-        len(results),
+        len(output),
 
         "businesses"
 
     )
+
+
+
+
+if __name__=="__main__":
+
+    main()

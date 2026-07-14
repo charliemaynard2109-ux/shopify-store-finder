@@ -1,0 +1,51 @@
+name: Update Business Database
+
+on:
+
+  workflow_dispatch:
+
+  schedule:
+    - cron: "0 6 * * *"
+
+
+jobs:
+
+  scan:
+
+    runs-on: ubuntu-latest
+
+
+    steps:
+
+    - name: Checkout repository
+      uses: actions/checkout@v4
+
+
+    - name: Setup Python
+      uses: actions/setup-python@v5
+      with:
+        python-version: "3.x"
+
+
+    - name: Install requirements
+      run:
+        pip install -r scanner/requirements.txt
+
+
+    - name: Run scanner
+      run:
+        cd scanner && python scanner.py
+
+
+    - name: Commit database update
+      run: |
+
+        git config user.name github-actions
+
+        git config user.email actions@github.com
+
+        git add database.json
+
+        git commit -m "Updated business database" || exit 0
+
+        git push

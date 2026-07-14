@@ -1,0 +1,83 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+<title>Shopify Store Finder</title>
+
+<link rel="stylesheet" href="style.css">
+
+</head>
+
+
+<body>
+
+<div class="container">
+
+<h1>Shopify Store Finder</h1>
+
+<p>
+Find businesses by postcode prefix and identify Shopify websites.
+</p>
+
+
+<div class="search-box">
+
+<input 
+id="postcode"
+type="text"
+placeholder="Enter postcode prefix e.g. CM2"
+>
+
+
+<button onclick="searchBusinesses()">
+Search
+</button>
+
+</div>
+
+
+<table>
+
+<thead>
+
+<tr>
+
+<th>Business</th>
+
+<th>Website</th>
+
+<th>Shopify</th>
+
+</tr>
+
+</thead>
+
+
+<tbody id="results">
+
+<tr>
+
+<td colspan="3">
+Enter a postcode to search
+</td>
+
+</tr>
+
+</tbody>
+
+
+</table>
+
+
+</div>
+
+
+<script src="app.js"></script>
+
+</body>
+
+</html>

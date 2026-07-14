@@ -1,68 +1,44 @@
 import json
 import time
-
-from ddgs import DDGS
+import requests
+from bs4 import BeautifulSoup
 
 from detector import detect_platform
-
 
 
 TARGET_DISTRICT = "CM1"
 
 
-
-BAD_DOMAINS = [
-
-    "facebook.com",
-
-    "instagram.com",
-
-    "tripadvisor.com",
-
-    "yell.com",
-
-    "yelp.com",
-
-    "google.com",
-
-    "linkedin.com",
-
-    "wikipedia.org"
-
-]
-
-
-
 SEARCH_TERMS = [
 
     "shop",
-
     "boutique",
-
-    "store",
-
     "online shop",
-
-    "gift shop",
-
     "clothing",
-
     "jewellery",
-
+    "gift shop",
     "furniture",
-
     "beauty",
-
     "pet shop"
 
 ]
 
 
+BAD_DOMAINS = [
+
+    "facebook.com",
+    "instagram.com",
+    "tripadvisor.com",
+    "yell.com",
+    "google.com",
+    "linkedin.com",
+    "youtube.com"
+
+]
 
 
 
-def valid_domain(url):
-
+def clean_url(url):
 
     for bad in BAD_DOMAINS:
 
@@ -77,74 +53,136 @@ def valid_domain(url):
 
 
 
+def bing_search(query):
+
+
+    print(
+        "Searching:",
+        query
+    )
+
+
+    url = "https://www.bing.com/search"
+
+
+    params = {
+
+        "q": query,
+
+        "count": 20
+
+    }
+
+
+    headers = {
+
+        "User-Agent":
+        "Mozilla/5.0"
+
+    }
+
+
+    try:
+
+
+        response = requests.get(
+
+            url,
+
+            params=params,
+
+            headers=headers,
+
+            timeout=30
+
+        )
+
+
+        soup = BeautifulSoup(
+
+            response.text,
+
+            "html.parser"
+
+        )
+
+
+
+    except Exception as e:
+
+
+        print(
+            "Search error:",
+            e
+        )
+
+        return []
+
+
+
+    links=[]
+
+
+
+    for item in soup.select("li.b_algo h2 a"):
+
+
+        href=item.get(
+            "href"
+        )
+
+
+        if href and href.startswith("http"):
+
+            links.append(
+                href
+            )
+
+
+    return links
+
+
+
+
+
 def find_websites():
 
 
-    websites={}
+    websites=set()
 
 
-    with DDGS() as ddgs:
+    for term in SEARCH_TERMS:
 
 
-        for term in SEARCH_TERMS:
+        query=f"{TARGET_DISTRICT} {term} website"
 
 
-            query=f"{TARGET_DISTRICT} {term} shop"
+        results=bing_search(
+            query
+        )
 
 
-            print(
-                query
-            )
+        for url in results:
 
 
-            results=list(
+            if clean_url(url):
 
-                ddgs.text(
-
-                    query,
-
-                    max_results=20
-
-                )
-
-            )
-
-
-
-            for result in results:
-
-
-                url=(
-
-                    result.get("href")
-
-                    or
-
-                    result.get("url")
-
+                websites.add(
+                    url
                 )
 
 
-                title=result.get(
-
-                    "title",
-
-                    "Unknown"
-
-                )
-
-
-                if url and url.startswith("http"):
-
-
-                    if valid_domain(url):
-
-                        websites[url]=title
+        time.sleep(2)
 
 
 
-            time.sleep(1)
+    print(
 
+        "Websites found:",
+
+        len(websites)
+
+    )
 
 
     return websites
@@ -153,34 +191,33 @@ def find_websites():
 
 
 
-def ecommerce_score(platform):
+def score(platform):
 
 
-    if platform=="Shopify":
+    scores={
 
-        return 100
+        "Shopify":100,
 
+        "WooCommerce":90,
 
-    if platform=="WooCommerce":
+        "Magento":80,
 
-        return 90
+        "Wix":60,
 
+        "Squarespace":60,
 
-    if platform in [
+        "Unknown":20
 
-        "Magento",
-
-        "Wix",
-
-        "Squarespace"
-
-    ]:
-
-        return 70
+    }
 
 
+    return scores.get(
 
-    return 20
+        platform,
+
+        0
+
+    )
 
 
 
@@ -192,15 +229,15 @@ def main():
     websites=find_websites()
 
 
-    output=[]
+    results=[]
 
 
 
-    for url,title in websites.items():
+    for url in websites:
 
 
         print(
-            "Scanning",
+            "Scanning:",
             url
         )
 
@@ -210,33 +247,29 @@ def main():
         )
 
 
-        score=ecommerce_score(
-            platform
-        )
+        results.append({
 
+            "postcode_area":
+            TARGET_DISTRICT,
 
-        output.append({
+            "website":
+            url,
 
-            "business":title,
+            "platform":
+            platform,
 
-            "website":url,
-
-            "postcode_area":TARGET_DISTRICT,
-
-            "platform":platform,
-
-            "score":score
+            "score":
+            score(platform)
 
         })
 
 
 
-        time.sleep(0.5)
+        time.sleep(1)
 
 
 
-
-    output.sort(
+    results.sort(
 
         key=lambda x:x["score"],
 
@@ -259,7 +292,7 @@ def main():
 
         json.dump(
 
-            output,
+            results,
 
             f,
 
@@ -273,11 +306,12 @@ def main():
 
         "Saved",
 
-        len(output),
+        len(results),
 
         "businesses"
 
     )
+
 
 
 

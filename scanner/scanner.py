@@ -30,17 +30,25 @@ def get_postcodes(district):
     )
 
 
-    data=response.json()
+    data = response.json()
 
 
-    results=[]
+    results = []
 
 
     for item in data.get("result", []):
 
-        results.append(
-            item["postcode"]
-        )
+        if isinstance(item, dict):
+
+            results.append(
+                item.get("postcode")
+            )
+
+        else:
+
+            results.append(
+                item
+            )
 
 
     print(
@@ -64,13 +72,13 @@ def get_coordinates(postcode):
     )
 
 
-    response=requests.get(
+    response = requests.get(
         url,
         timeout=20
     )
 
 
-    data=response.json()
+    data = response.json()
 
 
     if data.get("status") != 200:
@@ -79,7 +87,7 @@ def get_coordinates(postcode):
 
 
 
-    result=data["result"]
+    result = data["result"]
 
 
     return (
@@ -91,7 +99,7 @@ def get_coordinates(postcode):
 
 
 
-def find_businesses(postcodes):
+def find_businesses(postcodes, district):
 
 
     businesses=[]
@@ -122,8 +130,8 @@ def find_businesses(postcodes):
 [out:json][timeout:25];
 
 (
-node["shop"](around:750,{lat},{lon});
-way["shop"](around:750,{lat},{lon});
+node["shop"](around:500,{lat},{lon});
+way["shop"](around:500,{lat},{lon});
 
 );
 
@@ -133,7 +141,6 @@ out center;
 
 
         try:
-
 
             response=requests.post(
 
@@ -149,7 +156,12 @@ out center;
             data=response.json()
 
 
-        except Exception:
+        except Exception as e:
+
+            print(
+                "Overpass error:",
+                e
+            )
 
             continue
 
@@ -179,19 +191,21 @@ out center;
                 continue
 
 
+
             checked.add(
                 name
             )
 
 
 
-            website=(
+            website = (
                 tags.get("website")
                 or ""
             )
 
 
             platform="Not Checked"
+
 
 
             if website:
@@ -204,13 +218,13 @@ out center;
 
             businesses.append({
 
-                "business":name,
+                "business": name,
 
-                "postcode":district,
+                "postcode": district,
 
-                "website":website,
+                "website": website,
 
-                "platform":platform
+                "platform": platform
 
             })
 
@@ -234,16 +248,17 @@ out center;
 if __name__=="__main__":
 
 
-    district=TARGET_DISTRICT
+    district = TARGET_DISTRICT
 
 
-    postcodes=get_postcodes(
+    postcodes = get_postcodes(
         district
     )
 
 
-    businesses=find_businesses(
-        postcodes
+    businesses = find_businesses(
+        postcodes,
+        district
     )
 
 
@@ -259,7 +274,6 @@ if __name__=="__main__":
             f,
             indent=2
         )
-
 
 
     print(

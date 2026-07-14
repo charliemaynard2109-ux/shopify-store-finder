@@ -1,14 +1,14 @@
 import json
 import time
+import os
 import requests
+
 from bs4 import BeautifulSoup
 
 from detector import detect_platform
 
-
-import os
-
 from postcode_batches import POSTCODE_BATCHES
+
 
 
 BATCH = os.environ.get(
@@ -18,6 +18,7 @@ BATCH = os.environ.get(
 
 
 TARGET_DISTRICTS = POSTCODE_BATCHES[BATCH]
+
 
 
 SEARCH_TERMS = [
@@ -30,9 +31,12 @@ SEARCH_TERMS = [
     "gift shop",
     "furniture",
     "beauty",
-    "pet shop"
+    "pet shop",
+    "homeware",
+    "independent retailer"
 
 ]
+
 
 
 BAD_DOMAINS = [
@@ -41,19 +45,24 @@ BAD_DOMAINS = [
     "instagram.com",
     "tripadvisor.com",
     "yell.com",
+    "yelp.com",
     "google.com",
     "linkedin.com",
-    "youtube.com"
+    "youtube.com",
+    "pinterest.com"
 
 ]
 
 
 
+
+
 def clean_url(url):
+
 
     for bad in BAD_DOMAINS:
 
-        if bad in url:
+        if bad in url.lower():
 
             return False
 
@@ -73,40 +82,32 @@ def bing_search(query):
     )
 
 
-    url = "https://www.bing.com/search"
-
-
-    params = {
-
-        "q": query,
-
-        "count": 20
-
-    }
-
-
-    headers = {
-
-        "User-Agent":
-        "Mozilla/5.0"
-
-    }
-
-
     try:
 
 
         response = requests.get(
 
-            url,
+            "https://www.bing.com/search",
 
-            params=params,
+            params={
 
-            headers=headers,
+                "q": query,
+
+                "count": 20
+
+            },
+
+            headers={
+
+                "User-Agent":
+                "Mozilla/5.0"
+
+            },
 
             timeout=30
 
         )
+
 
 
         soup = BeautifulSoup(
@@ -127,60 +128,84 @@ def bing_search(query):
             e
         )
 
+
         return []
 
 
 
-    links=[]
+    results=[]
 
 
 
-    for item in soup.select("li.b_algo h2 a"):
+    for item in soup.select(
+        "li.b_algo h2 a"
+    ):
 
 
-        href=item.get(
+        link=item.get(
             "href"
         )
 
 
-        if href and href.startswith("http"):
+        if link and link.startswith("http"):
 
-            links.append(
-                href
+            results.append(
+                link
             )
 
 
-    return links
+
+    return results
 
 
 
 
 
-def find_websites():
+def find_websites(district):
 
 
     websites=set()
 
 
+
     for term in SEARCH_TERMS:
 
 
-        query=f"{TARGET_DISTRICT} {term} website"
+        query = (
+
+            district
+
+            +
+
+            " "
+
+            +
+
+            term
+
+            +
+
+            " website"
+
+        )
 
 
-        results=bing_search(
+
+        links = bing_search(
             query
         )
 
 
-        for url in results:
+
+        for link in links:
 
 
-            if clean_url(url):
+            if clean_url(link):
 
                 websites.add(
-                    url
+                    link
                 )
+
 
 
         time.sleep(2)
@@ -189,11 +214,14 @@ def find_websites():
 
     print(
 
-        "Websites found:",
+        district,
+
+        "websites found:",
 
         len(websites)
 
     )
+
 
 
     return websites
@@ -202,7 +230,7 @@ def find_websites():
 
 
 
-def score(platform):
+def ecommerce_score(platform):
 
 
     scores={
@@ -211,13 +239,15 @@ def score(platform):
 
         "WooCommerce":90,
 
-        "Magento":80,
+        "Magento":85,
 
         "Wix":60,
 
         "Squarespace":60,
 
-        "Unknown":20
+        "Unknown":20,
+
+        "Website Unreachable":0
 
     }
 
@@ -234,10 +264,67 @@ def score(platform):
 
 
 
-def main():
+def load_existing_database():
 
 
-    websites=find_websites()
+    try:
+
+
+        with open(
+
+            "../database.json",
+
+            "r",
+
+            encoding="utf-8"
+
+        ) as file:
+
+
+            return json.load(file)
+
+
+
+    except:
+
+
+        return []
+
+
+
+
+
+def save_database(results):
+
+
+    with open(
+
+        "../database.json",
+
+        "w",
+
+        encoding="utf-8"
+
+    ) as file:
+
+
+        json.dump(
+
+            results,
+
+            file,
+
+            indent=2,
+
+            ensure_ascii=False
+
+        )
+
+
+
+
+
+def scan_websites(websites, district):
 
 
     results=[]
@@ -248,20 +335,53 @@ def main():
 
 
         print(
+
             "Scanning:",
+
+            url
+
+        )
+
+
+
+        detected = detect_platform(
             url
         )
 
 
-        platform=detect_platform(
-            url
-        )
+
+        if isinstance(
+            detected,
+            dict
+        ):
+
+
+            platform = detected.get(
+                "platform",
+                "Unknown"
+            )
+
+
+            confidence = detected.get(
+                "confidence",
+                0
+            )
+
+
+        else:
+
+
+            platform = detected
+
+            confidence = 0
+
+
 
 
         results.append({
 
             "postcode_area":
-            TARGET_DISTRICT,
+            district,
 
             "website":
             url,
@@ -269,8 +389,13 @@ def main():
             "platform":
             platform,
 
+            "confidence":
+            confidence,
+
             "score":
-            score(platform)
+            ecommerce_score(
+                platform
+            )
 
         })
 
@@ -280,9 +405,102 @@ def main():
 
 
 
-    results.sort(
+    return results
 
-        key=lambda x:x["score"],
+
+
+
+
+def main():
+
+
+    existing = load_existing_database()
+
+
+
+    existing_urls=set()
+
+
+
+    for item in existing:
+
+        existing_urls.add(
+
+            item.get(
+                "website"
+            )
+
+        )
+
+
+
+    new_results=[]
+
+
+
+    for district in TARGET_DISTRICTS:
+
+
+        print(
+
+            "===================="
+
+        )
+
+
+        print(
+
+            "Scanning district:",
+
+            district
+
+        )
+
+
+        websites=find_websites(
+            district
+        )
+
+
+
+        results=scan_websites(
+
+            websites,
+
+            district
+
+        )
+
+
+
+        for item in results:
+
+
+            if item["website"] not in existing_urls:
+
+
+                new_results.append(
+                    item
+                )
+
+
+
+                existing_urls.add(
+                    item["website"]
+                )
+
+
+
+    combined = existing + new_results
+
+
+
+    combined.sort(
+
+        key=lambda x:x.get(
+            "score",
+            0
+        ),
 
         reverse=True
 
@@ -290,36 +508,28 @@ def main():
 
 
 
-    with open(
-
-        "../database.json",
-
-        "w",
-
-        encoding="utf8"
-
-    ) as f:
-
-
-        json.dump(
-
-            results,
-
-            f,
-
-            indent=2
-
-        )
+    save_database(
+        combined
+    )
 
 
 
     print(
 
-        "Saved",
+        "Added",
 
-        len(results),
+        len(new_results),
 
-        "businesses"
+        "new businesses"
+
+    )
+
+
+    print(
+
+        "Total database:",
+
+        len(combined)
 
     )
 
@@ -327,6 +537,6 @@ def main():
 
 
 
-if __name__=="__main__":
+if __name__ == "__main__":
 
     main()

@@ -24,13 +24,25 @@ def get_postcodes(district):
     )
 
 
-    response = requests.get(
-        url,
-        timeout=30
-    )
+    try:
+
+        response = requests.get(
+            url,
+            timeout=30
+        )
+
+        data = response.json()
 
 
-    data = response.json()
+    except Exception as e:
+
+        print(
+            "Postcode lookup error:",
+            e
+        )
+
+        return []
+
 
 
     results = []
@@ -40,14 +52,19 @@ def get_postcodes(district):
 
         if isinstance(item, dict):
 
-            results.append(
-                item.get("postcode")
+            postcode = item.get(
+                "postcode"
             )
 
         else:
 
+            postcode = item
+
+
+        if postcode:
+
             results.append(
-                item
+                postcode
             )
 
 
@@ -72,13 +89,20 @@ def get_coordinates(postcode):
     )
 
 
-    response = requests.get(
-        url,
-        timeout=20
-    )
+    try:
+
+        response = requests.get(
+            url,
+            timeout=20
+        )
+
+        data = response.json()
 
 
-    data = response.json()
+    except Exception:
+
+        return None
+
 
 
     if data.get("status") != 200:
@@ -87,13 +111,123 @@ def get_coordinates(postcode):
 
 
 
-    result = data["result"]
+    result = data.get(
+        "result"
+    )
+
+
+    if not result:
+
+        return None
+
 
 
     return (
-        result["latitude"],
-        result["longitude"]
+
+        result.get("latitude"),
+
+        result.get("longitude")
+
     )
+
+
+
+
+
+def query_overpass(lat, lon):
+
+
+    query = f"""
+
+[out:json][timeout:25];
+
+(
+node["shop"](around:300,{lat},{lon});
+way["shop"](around:300,{lat},{lon});
+
+node["craft"](around:300,{lat},{lon});
+way["craft"](around:300,{lat},{lon});
+
+);
+
+out center;
+
+"""
+
+
+
+    servers = [
+
+        "https://overpass.kumi.systems/api/interpreter",
+
+        "https://overpass.private.coffee/api/interpreter",
+
+        "https://overpass-api.de/api/interpreter"
+
+    ]
+
+
+
+    for server in servers:
+
+
+        try:
+
+
+            print(
+                "Trying:",
+                server
+            )
+
+
+            response = requests.post(
+
+                server,
+
+                data=query,
+
+                headers={
+                    "User-Agent":
+                    "ShopifyBusinessFinder/1.0"
+                },
+
+                timeout=60
+
+            )
+
+
+
+            if response.status_code != 200:
+
+                continue
+
+
+
+            if not response.text.strip():
+
+                continue
+
+
+
+            return response.json()
+
+
+
+        except Exception as e:
+
+
+            print(
+                "Failed:",
+                server,
+                str(e)
+            )
+
+
+            continue
+
+
+
+    return None
 
 
 
@@ -108,7 +242,17 @@ def find_businesses(postcodes, district):
 
 
 
-    for postcode in postcodes:
+    for index, postcode in enumerate(postcodes):
+
+
+        print(
+            "Checking postcode:",
+            postcode,
+            index + 1,
+            "/",
+            len(postcodes)
+        )
+
 
 
         coords=get_coordinates(
@@ -117,58 +261,32 @@ def find_businesses(postcodes, district):
 
 
         if not coords:
-            continue
-
-
-
-        lat,lon=coords
-
-
-
-        query=f"""
-
-[out:json][timeout:25];
-
-(
-node["shop"](around:500,{lat},{lon});
-way["shop"](around:500,{lat},{lon});
-
-);
-
-out center;
-
-"""
-
-
-        try:
-
-            response=requests.post(
-
-                "https://overpass-api.de/api/interpreter",
-
-                data=query,
-
-                timeout=40
-
-            )
-
-
-            data=response.json()
-
-
-        except Exception as e:
-
-            print(
-                "Overpass error:",
-                e
-            )
 
             continue
 
 
 
+        lat, lon = coords
 
-        for item in data.get("elements", []):
+
+
+        data=query_overpass(
+            lat,
+            lon
+        )
+
+
+
+        if not data:
+
+            continue
+
+
+
+        for item in data.get(
+            "elements",
+            []
+        ):
 
 
             tags=item.get(
@@ -183,25 +301,41 @@ out center;
 
 
             if not name:
+
                 continue
 
 
 
-            if name in checked:
+            key=name.lower()
+
+
+
+            if key in checked:
+
                 continue
 
 
 
             checked.add(
-                name
+                key
             )
 
 
 
             website = (
+
                 tags.get("website")
-                or ""
+
+                or
+
+                tags.get("contact:website")
+
+                or
+
+                ""
+
             )
+
 
 
             platform="Not Checked"
@@ -210,9 +344,16 @@ out center;
 
             if website:
 
-                platform=detect_platform(
-                    website
-                )
+
+                try:
+
+                    platform=detect_platform(
+                        website
+                    )
+
+                except Exception:
+
+                    platform="Error"
 
 
 
@@ -220,7 +361,7 @@ out center;
 
                 "business": name,
 
-                "postcode": district,
+                "postcode_area": district,
 
                 "website": website,
 
@@ -229,13 +370,18 @@ out center;
             })
 
 
+
             print(
+
                 name,
+
                 platform
+
             )
 
 
-        time.sleep(0.5)
+
+        time.sleep(0.3)
 
 
 
@@ -245,7 +391,37 @@ out center;
 
 
 
-if __name__=="__main__":
+def save_database(results):
+
+
+    with open(
+
+        "../database.json",
+
+        "w",
+
+        encoding="utf8"
+
+    ) as file:
+
+
+        json.dump(
+
+            results,
+
+            file,
+
+            indent=2,
+
+            ensure_ascii=False
+
+        )
+
+
+
+
+
+if __name__ == "__main__":
 
 
     district = TARGET_DISTRICT
@@ -257,27 +433,25 @@ if __name__=="__main__":
 
 
     businesses = find_businesses(
+
         postcodes,
+
         district
+
     )
 
 
-    with open(
-        "../database.json",
-        "w",
-        encoding="utf8"
-    ) as f:
-
-
-        json.dump(
-            businesses,
-            f,
-            indent=2
-        )
+    save_database(
+        businesses
+    )
 
 
     print(
+
         "Saved",
+
         len(businesses),
+
         "businesses"
+
     )

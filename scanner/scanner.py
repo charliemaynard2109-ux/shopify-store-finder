@@ -33,23 +33,35 @@ def get_boundary(district):
     }
 
 
-    response = requests.get(
+    try:
 
-        url,
+        response = requests.get(
 
-        params=params,
+            url,
 
-        headers={
-            "User-Agent":
-            "ShopifyBusinessFinder/1.0"
-        },
+            params=params,
 
-        timeout=30
+            headers={
+                "User-Agent":
+                "ShopifyBusinessFinder/1.0"
+            },
 
-    )
+            timeout=30
+
+        )
 
 
-    data=response.json()
+        data = response.json()
+
+
+    except Exception as e:
+
+        print(
+            "Boundary lookup error:",
+            e
+        )
+
+        return None
 
 
 
@@ -63,20 +75,17 @@ def get_boundary(district):
 
 
 
-    item=data[0]
-
-
-    if "geojson" not in item:
+    if "geojson" not in data[0]:
 
         print(
-            "No polygon available"
+            "No polygon returned"
         )
 
         return None
 
 
 
-    return item["geojson"]
+    return data[0]["geojson"]
 
 
 
@@ -90,20 +99,23 @@ def search_businesses(boundary):
     )
 
 
-
-    coords=json.dumps(
+    polygon = json.dumps(
         boundary
     )
 
 
 
-    query=f"""
+    query = f"""
 
-[out:json][timeout:120];
+[out:json][timeout:180];
 
 (
-nwr["shop"](poly:"{coords}");
-nwr["craft"](poly:"{coords}");
+node["shop"](poly:"{polygon}");
+way["shop"](poly:"{polygon}");
+
+node["craft"](poly:"{polygon}");
+way["craft"](poly:"{polygon}");
+
 );
 
 out center;
@@ -112,13 +124,13 @@ out center;
 
 
 
-    servers=[
+    servers = [
+
+        "https://overpass-api.de/api/interpreter",
 
         "https://overpass.kumi.systems/api/interpreter",
 
-        "https://overpass.private.coffee/api/interpreter",
-
-        "https://overpass-api.de/api/interpreter"
+        "https://overpass.nchc.org.tw/api/interpreter"
 
     ]
 
@@ -131,30 +143,44 @@ out center;
 
 
             print(
-                "Trying",
+                "Trying:",
                 server
             )
 
 
-
-            response=requests.post(
+            response = requests.post(
 
                 server,
 
                 data=query,
 
                 headers={
+
                     "User-Agent":
                     "ShopifyBusinessFinder/1.0"
+
                 },
 
-                timeout=120
+                timeout=240
 
             )
 
 
 
+            print(
+                "Status:",
+                response.status_code
+            )
+
+
+
             if response.status_code != 200:
+
+                continue
+
+
+
+            if not response.text.strip():
 
                 continue
 
@@ -168,10 +194,18 @@ out center;
 
 
             print(
-                "Failed:",
+                "Server failed:",
                 e
             )
 
+
+            continue
+
+
+
+    print(
+        "All Overpass servers failed"
+    )
 
 
     return None
@@ -218,19 +252,23 @@ def process_businesses(data):
 
 
 
-        if name.lower() in checked:
+        key=name.lower()
+
+
+
+        if key in checked:
 
             continue
 
 
 
         checked.add(
-            name.lower()
+            key
         )
 
 
 
-        website=(
+        website = (
 
             tags.get("website")
 
@@ -245,6 +283,7 @@ def process_businesses(data):
         )
 
 
+
         platform="Not Checked"
 
 
@@ -254,11 +293,12 @@ def process_businesses(data):
 
             try:
 
-                platform=detect_platform(
+                platform = detect_platform(
                     website
                 )
 
-            except:
+
+            except Exception:
 
                 platform="Error"
 
@@ -266,21 +306,26 @@ def process_businesses(data):
 
         results.append({
 
-            "business":name,
+            "business": name,
 
-            "postcode_area":TARGET_DISTRICT,
+            "postcode_area": TARGET_DISTRICT,
 
-            "website":website,
+            "website": website,
 
-            "platform":platform
+            "platform": platform
 
         })
 
 
 
         print(
+
             name,
+
+            "|",
+
             platform
+
         )
 
 
@@ -291,29 +336,7 @@ def process_businesses(data):
 
 
 
-def main():
-
-
-    boundary=get_boundary(
-        TARGET_DISTRICT
-    )
-
-
-    if not boundary:
-
-        return
-
-
-
-    data=search_businesses(
-        boundary
-    )
-
-
-    results=process_businesses(
-        data
-    )
-
+def save_database(results):
 
 
     with open(
@@ -322,7 +345,7 @@ def main():
 
         "w",
 
-        encoding="utf8"
+        encoding="utf-8"
 
     ) as file:
 
@@ -333,10 +356,47 @@ def main():
 
             file,
 
-            indent=2
+            indent=2,
+
+            ensure_ascii=False
 
         )
 
+
+
+
+
+def main():
+
+
+    boundary = get_boundary(
+        TARGET_DISTRICT
+    )
+
+
+    if not boundary:
+
+        print(
+            "Stopping - no boundary"
+        )
+
+        return
+
+
+
+    data = search_businesses(
+        boundary
+    )
+
+
+    results = process_businesses(
+        data
+    )
+
+
+    save_database(
+        results
+    )
 
 
     print(
@@ -352,6 +412,7 @@ def main():
 
 
 
-if __name__=="__main__":
+
+if __name__ == "__main__":
 
     main()

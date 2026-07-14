@@ -1,23 +1,23 @@
 import requests
-import zipfile
-import io
 import os
 
 
-url = "https://parlvid.mysociety.org/os/pc/pc-complete.csv"
+URL = "https://www.getthedata.com/downloads/open_postcode_geo.csv.zip"
 
 
-print("Downloading postcode data...")
+print("Downloading postcode database...")
 
 
-r = requests.get(
-    url,
-    timeout=120
+response = requests.get(
+    URL,
+    timeout=300
 )
 
 
-if r.status_code != 200:
-    raise Exception("Postcode download failed")
+if response.status_code != 200:
+    raise Exception(
+        f"Download failed: {response.status_code}"
+    )
 
 
 os.makedirs(
@@ -27,15 +27,13 @@ os.makedirs(
 
 
 with open(
-    "../data/postcodes.csv",
+    "../data/postcodes.zip",
     "wb"
-) as f:
+) as file:
 
-    f.write(
-        r.content
+    file.write(
+        response.content
     )
 
 
-print(
-    "Postcode database downloaded"
-)
+print("Download complete")

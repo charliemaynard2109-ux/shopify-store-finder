@@ -3,85 +3,118 @@ import requests
 
 def detect_platform(url):
 
+
     try:
 
-        if not url.startswith("http"):
-            url="https://" + url
 
+        response = requests.get(
 
-        r=requests.get(
             url,
-            timeout=10,
+
             headers={
                 "User-Agent":
                 "Mozilla/5.0"
-            }
+            },
+
+            timeout=15
+
         )
 
 
-        html=r.text.lower()
-
-
-
-        # Shopify
-
-        shopify=[
-            "cdn.shopify.com",
-            "shopify.theme",
-            "shopify-section",
-            "shopify.shop",
-            "/cart.js"
-        ]
-
-
-        for item in shopify:
-
-            if item in html:
-                return "Shopify"
-
-
-
-        # WooCommerce
-
-        woo=[
-            "woocommerce",
-            "wc-ajax",
-            "wp-content/plugins/woocommerce"
-        ]
-
-
-        for item in woo:
-
-            if item in html:
-                return "WooCommerce"
-
-
-
-        # Magento
-
-        if "magento" in html:
-            return "Magento"
-
-
-
-        # Wix
-
-        if "wixstatic" in html:
-            return "Wix"
-
-
-
-        # Squarespace
-
-        if "squarespace" in html:
-            return "Squarespace"
-
-
-
-        return "Unknown"
+        html = response.text.lower()
 
 
 
     except Exception:
 
-        return "Unreachable"
+
+        return "Website Unreachable"
+
+
+
+    # Shopify indicators
+
+    shopify_signals = [
+
+        "cdn.shopify.com",
+
+        "shopify.theme",
+
+        "myshopify.com",
+
+        "/products/",
+
+        "shopify-payment-button",
+
+        "shopify-section"
+
+    ]
+
+
+    for signal in shopify_signals:
+
+        if signal in html:
+
+            return "Shopify"
+
+
+
+    # WooCommerce indicators
+
+    woo_signals = [
+
+        "woocommerce",
+
+        "wp-content/plugins/woocommerce",
+
+        "wc-block",
+
+        "add-to-cart"
+
+    ]
+
+
+    for signal in woo_signals:
+
+        if signal in html:
+
+            return "WooCommerce"
+
+
+
+    # Magento
+
+    magento_signals = [
+
+        "magento",
+
+        "mage-cache"
+
+    ]
+
+
+    for signal in magento_signals:
+
+        if signal in html:
+
+            return "Magento"
+
+
+
+    # Wix
+
+    if "wixstatic.com" in html:
+
+        return "Wix"
+
+
+
+    # Squarespace
+
+    if "squarespace.com" in html:
+
+        return "Squarespace"
+
+
+
+    return "Unknown"

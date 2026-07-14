@@ -1,8 +1,6 @@
 import json
-import requests
 import time
 
-from bs4 import BeautifulSoup
 from ddgs import DDGS
 
 from detector import detect_platform
@@ -11,37 +9,26 @@ from detector import detect_platform
 TARGET_DISTRICT = "CM1"
 
 
-
 SEARCH_TERMS = [
 
     "clothing shop",
-
     "boutique",
-
     "gift shop",
-
     "furniture shop",
-
-    "beauty",
-
+    "beauty salon",
     "jewellery",
-
     "homeware",
-
     "sports shop",
-
     "pet shop",
-
-    "food shop"
+    "food shop",
+    "independent shop",
+    "online store"
 
 ]
 
 
 
-
-
 def find_websites():
-
 
     websites = {}
 
@@ -52,74 +39,102 @@ def find_websites():
     )
 
 
-    with DDGS() as ddgs:
+    try:
+
+        with DDGS() as ddgs:
 
 
-        for term in SEARCH_TERMS:
+            for term in SEARCH_TERMS:
 
 
-            query = (
-                TARGET_DISTRICT
-                +
-                " "
-                +
-                term
-                +
-                " website"
-            )
-
-
-            print(
-                "Query:",
-                query
-            )
-
-
-            try:
-
-
-                results = ddgs.text(
-
-                    query,
-
-                    max_results=20
-
+                query = (
+                    TARGET_DISTRICT
+                    +
+                    " "
+                    +
+                    term
+                    +
+                    " website"
                 )
-
-
-                for result in results:
-
-
-                    url = result.get(
-                        "href"
-                    )
-
-
-                    title = result.get(
-                        "title"
-                    )
-
-
-                    if url and url.startswith(
-                        "http"
-                    ):
-
-
-                        websites[url] = title
-
-
-
-            except Exception as e:
 
 
                 print(
-                    "Search error:",
-                    e
+                    "Query:",
+                    query
                 )
 
 
+                try:
 
-            time.sleep(1)
+
+                    results = list(
+                        ddgs.text(
+                            query,
+                            max_results=20
+                        )
+                    )
+
+
+                    print(
+                        "Results returned:",
+                        len(results)
+                    )
+
+
+
+                    for result in results:
+
+
+                        url = (
+
+                            result.get("href")
+
+                            or
+
+                            result.get("url")
+
+                        )
+
+
+                        title = (
+
+                            result.get("title")
+
+                            or
+
+                            "Unknown Business"
+
+                        )
+
+
+                        if url and url.startswith("http"):
+
+
+                            websites[url] = title
+
+
+
+                except Exception as e:
+
+
+                    print(
+                        "Search error:",
+                        e
+                    )
+
+
+
+                time.sleep(1)
+
+
+
+    except Exception as e:
+
+
+        print(
+            "DDGS error:",
+            e
+        )
 
 
 
@@ -127,6 +142,19 @@ def find_websites():
         "Websites found:",
         len(websites)
     )
+
+
+
+    print(
+        "Sample websites:"
+    )
+
+
+    for site in list(websites.keys())[:10]:
+
+        print(
+            site
+        )
 
 
     return websites
@@ -138,11 +166,11 @@ def find_websites():
 def scan_websites(websites):
 
 
-    output=[]
+    results=[]
 
 
 
-    for url,title in websites.items():
+    for url, title in websites.items():
 
 
         print(
@@ -158,10 +186,9 @@ def scan_websites(websites):
         try:
 
 
-            platform=detect_platform(
+            platform = detect_platform(
                 url
             )
-
 
 
         except Exception as e:
@@ -173,14 +200,17 @@ def scan_websites(websites):
             )
 
 
+            platform="Error"
 
-        output.append({
+
+
+        results.append({
 
             "business": title,
 
-            "website": url,
-
             "postcode_area": TARGET_DISTRICT,
+
+            "website": url,
 
             "platform": platform
 
@@ -192,13 +222,13 @@ def scan_websites(websites):
 
 
 
-    return output
+    return results
 
 
 
 
 
-def save(results):
+def save_database(results):
 
 
     with open(
@@ -207,18 +237,20 @@ def save(results):
 
         "w",
 
-        encoding="utf8"
+        encoding="utf-8"
 
-    ) as f:
+    ) as file:
 
 
         json.dump(
 
             results,
 
-            f,
+            file,
 
-            indent=2
+            indent=2,
+
+            ensure_ascii=False
 
         )
 
@@ -226,18 +258,18 @@ def save(results):
 
 
 
-if __name__=="__main__":
+if __name__ == "__main__":
 
 
-    websites=find_websites()
+    websites = find_websites()
 
 
-    results=scan_websites(
+    results = scan_websites(
         websites
     )
 
 
-    save(
+    save_database(
         results
     )
 

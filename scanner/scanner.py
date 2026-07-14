@@ -1,6 +1,5 @@
-import csv
-import json
 import requests
+import json
 import time
 
 from detector import detect_platform
@@ -9,49 +8,84 @@ from detector import detect_platform
 TARGET_DISTRICT = "CM1"
 
 
-def load_postcodes():
+
+def get_postcodes(district):
+
+    print(
+        "Finding postcodes for:",
+        district
+    )
 
 
-    matches=[]
+    url = (
+        "https://api.postcodes.io/postcodes/"
+        + district
+        + "/autocomplete"
+    )
 
 
-    with open(
-        "../data/postcodes.csv",
-        encoding="utf8"
-    ) as f:
+    response = requests.get(
+        url,
+        timeout=30
+    )
 
 
-        reader=csv.DictReader(f)
+    data=response.json()
 
 
-        for row in reader:
+    results=[]
 
 
-            postcode=row.get(
-                "postcode"
-            )
+    for item in data.get("result", []):
 
-
-            if not postcode:
-                continue
-
-
-
-            if postcode.startswith(
-                TARGET_DISTRICT
-            ):
-
-                matches.append(row)
-
+        results.append(
+            item["postcode"]
+        )
 
 
     print(
         "Postcodes found:",
-        len(matches)
+        len(results)
     )
 
 
-    return matches
+    return results
+
+
+
+
+
+def get_coordinates(postcode):
+
+
+    url = (
+        "https://api.postcodes.io/postcodes/"
+        + postcode
+    )
+
+
+    response=requests.get(
+        url,
+        timeout=20
+    )
+
+
+    data=response.json()
+
+
+    if data.get("status") != 200:
+
+        return None
+
+
+
+    result=data["result"]
+
+
+    return (
+        result["latitude"],
+        result["longitude"]
+    )
 
 
 
@@ -62,35 +96,34 @@ def find_businesses(postcodes):
 
     businesses=[]
 
-
     checked=set()
 
 
 
-    for p in postcodes:
+    for postcode in postcodes:
 
 
-        lat=p.get(
-            "latitude"
-        )
-
-        lon=p.get(
-            "longitude"
+        coords=get_coordinates(
+            postcode
         )
 
 
-        if not lat or not lon:
+        if not coords:
             continue
+
+
+
+        lat,lon=coords
 
 
 
         query=f"""
 
-[out:json][timeout:30];
+[out:json][timeout:25];
 
 (
-node["shop"](around:500,{lat},{lon});
-way["shop"](around:500,{lat},{lon});
+node["shop"](around:750,{lat},{lon});
+way["shop"](around:750,{lat},{lon});
 
 );
 
@@ -102,31 +135,28 @@ out center;
         try:
 
 
-            r=requests.post(
+            response=requests.post(
 
                 "https://overpass-api.de/api/interpreter",
 
                 data=query,
 
-                timeout=60
+                timeout=40
 
             )
 
 
-            data=r.json()
+            data=response.json()
 
 
         except Exception:
-
 
             continue
 
 
 
-        for item in data.get(
-            "elements",
-            []
-        ):
+
+        for item in data.get("elements", []):
 
 
             tags=item.get(
@@ -145,31 +175,23 @@ out center;
 
 
 
-            key=name.lower()
-
-
-
-            if key in checked:
+            if name in checked:
                 continue
 
 
-
             checked.add(
-                key
+                name
             )
 
 
 
             website=(
                 tags.get("website")
-                or
-                ""
+                or ""
             )
 
 
-
             platform="Not Checked"
-
 
 
             if website:
@@ -184,7 +206,7 @@ out center;
 
                 "business":name,
 
-                "postcode":TARGET_DISTRICT,
+                "postcode":district,
 
                 "website":website,
 
@@ -209,10 +231,15 @@ out center;
 
 
 
-def main():
+if __name__=="__main__":
 
 
-    postcodes=load_postcodes()
+    district=TARGET_DISTRICT
+
+
+    postcodes=get_postcodes(
+        district
+    )
 
 
     businesses=find_businesses(
@@ -228,30 +255,15 @@ def main():
 
 
         json.dump(
-
             businesses,
-
             f,
-
             indent=2
-
         )
 
 
 
     print(
-
         "Saved",
-
         len(businesses),
-
         "businesses"
-
     )
-
-
-
-
-if __name__=="__main__":
-
-    main()

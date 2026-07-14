@@ -1,137 +1,205 @@
-import requests
+import csv
 import json
+import requests
 import time
 
 from detector import detect_platform
 
 
-POSTCODE_AREA = "CM"
+TARGET_DISTRICT = "CM1"
 
 
-def get_businesses(area):
-
-    print("Scanning:", area)
+def load_postcodes():
 
 
-    query = f"""
-[out:json][timeout:60];
-
-(
-  node["shop"](50.0,-6.0,58.7,2.0);
-  way["shop"](50.0,-6.0,58.7,2.0);
-);
-
-out center;
-"""
+    matches=[]
 
 
-    try:
-
-        response = requests.post(
-            "https://overpass.kumi.systems/api/interpreter",
-            data=query,
-            headers={
-                "User-Agent":"ShopifyFinder/1.0"
-            },
-            timeout=120
-        )
+    with open(
+        "../data/postcodes.csv",
+        encoding="utf8"
+    ) as f:
 
 
-        print(
-            "Overpass status:",
-            response.status_code
-        )
+        reader=csv.DictReader(f)
 
 
-        if response.status_code != 200:
+        for row in reader:
 
-            print(
-                response.text[:500]
+
+            postcode=row.get(
+                "postcode"
             )
 
-            return []
+
+            if not postcode:
+                continue
 
 
 
-        data=response.json()
+            if postcode.startswith(
+                TARGET_DISTRICT
+            ):
+
+                matches.append(row)
 
 
 
-    except Exception as e:
+    print(
+        "Postcodes found:",
+        len(matches)
+    )
 
-        print(
-            "Overpass error:",
-            e
-        )
 
-        return []
+    return matches
 
+
+
+
+
+def find_businesses(postcodes):
 
 
     businesses=[]
 
 
-    for item in data.get("elements", []):
+    checked=set()
 
 
-        tags=item.get(
-            "tags",
-            {}
+
+    for p in postcodes:
+
+
+        lat=p.get(
+            "latitude"
+        )
+
+        lon=p.get(
+            "longitude"
         )
 
 
-        name=tags.get(
-            "name"
-        )
-
-
-        if not name:
+        if not lat or not lon:
             continue
 
 
 
-        website = (
-            tags.get("website")
-            or
-            tags.get("contact:website")
-            or
-            ""
-        )
+        query=f"""
+
+[out:json][timeout:30];
+
+(
+node["shop"](around:500,{lat},{lon});
+way["shop"](around:500,{lat},{lon});
+
+);
+
+out center;
+
+"""
+
+
+        try:
+
+
+            r=requests.post(
+
+                "https://overpass-api.de/api/interpreter",
+
+                data=query,
+
+                timeout=60
+
+            )
+
+
+            data=r.json()
+
+
+        except Exception:
+
+
+            continue
 
 
 
-        platform="Not Checked"
+        for item in data.get(
+            "elements",
+            []
+        ):
+
+
+            tags=item.get(
+                "tags",
+                {}
+            )
+
+
+            name=tags.get(
+                "name"
+            )
+
+
+            if not name:
+                continue
 
 
 
-        if website:
+            key=name.lower()
 
-            platform=detect_platform(
-                website
+
+
+            if key in checked:
+                continue
+
+
+
+            checked.add(
+                key
             )
 
 
 
-        businesses.append({
-
-            "business":name,
-
-            "postcode_area":area,
-
-            "website":website,
-
-            "platform":platform
-
-        })
+            website=(
+                tags.get("website")
+                or
+                ""
+            )
 
 
-        print(
-            name,
-            platform
-        )
+
+            platform="Not Checked"
 
 
-        time.sleep(0.2)
+
+            if website:
+
+                platform=detect_platform(
+                    website
+                )
+
+
+
+            businesses.append({
+
+                "business":name,
+
+                "postcode":TARGET_DISTRICT,
+
+                "website":website,
+
+                "platform":platform
+
+            })
+
+
+            print(
+                name,
+                platform
+            )
+
+
+        time.sleep(0.5)
 
 
 
@@ -141,42 +209,49 @@ out center;
 
 
 
-def save_results(results):
+def main():
+
+
+    postcodes=load_postcodes()
+
+
+    businesses=find_businesses(
+        postcodes
+    )
 
 
     with open(
         "../database.json",
         "w",
-        encoding="utf-8"
-    ) as file:
+        encoding="utf8"
+    ) as f:
 
 
         json.dump(
-            results,
-            file,
-            indent=2,
-            ensure_ascii=False
+
+            businesses,
+
+            f,
+
+            indent=2
+
         )
 
+
+
+    print(
+
+        "Saved",
+
+        len(businesses),
+
+        "businesses"
+
+    )
 
 
 
 
 if __name__=="__main__":
 
-
-    results=get_businesses(
-        POSTCODE_AREA
-    )
-
-
-    save_results(
-        results
-    )
-
-
-    print(
-        "Saved",
-        len(results),
-        "businesses"
-    )
+    main()

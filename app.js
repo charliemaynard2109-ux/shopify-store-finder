@@ -6,80 +6,76 @@ async function searchBusinesses() {
         .toUpperCase()
         .trim();
 
-
     const results = document.getElementById("results");
 
 
-    if (!postcode) {
+    try {
 
-        results.innerHTML = `
-        <tr>
-            <td colspan="3">
-                Please enter a postcode prefix
-            </td>
-        </tr>
-        `;
+        const response = await fetch("./businesses.json");
 
-        return;
-
-    }
+        const businesses = await response.json();
 
 
-    const response = await fetch("businesses.json");
-
-    const businesses = await response.json();
-
-
-    const matches = businesses.filter(business =>
-        business.postcode.startsWith(postcode)
-    );
+        const matches = businesses.filter(business =>
+            business.postcode.startsWith(postcode)
+        );
 
 
-    results.innerHTML = "";
+        results.innerHTML = "";
 
 
-    if (matches.length === 0) {
+        if (matches.length === 0) {
 
-        results.innerHTML = `
-        <tr>
-            <td colspan="3">
+            results.innerHTML = `
+            <tr>
+                <td colspan="3">
                 No businesses found
+                </td>
+            </tr>
+            `;
+
+            return;
+
+        }
+
+
+        matches.forEach(business => {
+
+            results.innerHTML += `
+
+            <tr>
+
+            <td>${business.name}</td>
+
+            <td>
+            <a href="${business.website}" target="_blank">
+            ${business.website}
+            </a>
             </td>
+
+            <td>
+            Not checked yet
+            </td>
+
+            </tr>
+
+            `;
+
+        });
+
+
+    } catch(error) {
+
+        results.innerHTML = `
+        <tr>
+        <td colspan="3">
+        Error loading business database
+        </td>
         </tr>
         `;
 
-        return;
+        console.log(error);
 
     }
-
-
-    matches.forEach(business => {
-
-
-        results.innerHTML += `
-
-        <tr>
-
-            <td>
-                ${business.name}
-            </td>
-
-            <td>
-                <a href="${business.website}" target="_blank">
-                ${business.website}
-                </a>
-            </td>
-
-            <td>
-                Checking...
-            </td>
-
-        </tr>
-
-        `;
-
-
-    });
-
 
 }

@@ -1,6 +1,9 @@
-import requests
 import json
+import requests
 import time
+
+from bs4 import BeautifulSoup
+from duckduckgo_search import DDGS
 
 from detector import detect_platform
 
@@ -9,184 +12,155 @@ TARGET_DISTRICT = "CM1"
 
 
 
-def get_boundary(district):
+SEARCH_TERMS = [
 
-    print(
-        "Finding boundary for:",
-        district
-    )
+    "clothing shop",
 
+    "boutique",
 
-    url = "https://nominatim.openstreetmap.org/search"
+    "gift shop",
 
+    "furniture shop",
 
-    params = {
+    "beauty",
 
-        "q": f"{district}, UK",
+    "jewellery",
 
-        "format": "json",
+    "homeware",
 
-        "polygon_geojson": 1,
+    "sports shop",
 
-        "limit": 1
+    "pet shop",
 
-    }
+    "food shop"
 
-
-    try:
-
-        response = requests.get(
-
-            url,
-
-            params=params,
-
-            headers={
-                "User-Agent":
-                "ShopifyBusinessFinder/1.0"
-            },
-
-            timeout=30
-
-        )
-
-
-        data = response.json()
-
-
-    except Exception as e:
-
-        print(
-            "Boundary lookup error:",
-            e
-        )
-
-        return None
-
-
-
-    if not data:
-
-        print(
-            "No boundary found"
-        )
-
-        return None
-
-
-
-    if "geojson" not in data[0]:
-
-        print(
-            "No polygon returned"
-        )
-
-        return None
-
-
-
-    return data[0]["geojson"]
+]
 
 
 
 
 
-def search_businesses(boundary):
+def find_websites():
+
+
+    websites = {}
 
 
     print(
-        "Searching businesses..."
+        "Searching:",
+        TARGET_DISTRICT
     )
 
 
-    polygon = json.dumps(
-        boundary
+    with DDGS() as ddgs:
+
+
+        for term in SEARCH_TERMS:
+
+
+            query = (
+                TARGET_DISTRICT
+                +
+                " "
+                +
+                term
+                +
+                " website"
+            )
+
+
+            print(
+                "Query:",
+                query
+            )
+
+
+            try:
+
+
+                results = ddgs.text(
+
+                    query,
+
+                    max_results=20
+
+                )
+
+
+                for result in results:
+
+
+                    url = result.get(
+                        "href"
+                    )
+
+
+                    title = result.get(
+                        "title"
+                    )
+
+
+                    if url and url.startswith(
+                        "http"
+                    ):
+
+
+                        websites[url] = title
+
+
+
+            except Exception as e:
+
+
+                print(
+                    "Search error:",
+                    e
+                )
+
+
+
+            time.sleep(1)
+
+
+
+    print(
+        "Websites found:",
+        len(websites)
     )
 
 
-
-    query = f"""
-
-[out:json][timeout:180];
-
-(
-node["shop"](poly:"{polygon}");
-way["shop"](poly:"{polygon}");
-
-node["craft"](poly:"{polygon}");
-way["craft"](poly:"{polygon}");
-
-);
-
-out center;
-
-"""
+    return websites
 
 
 
-    servers = [
 
-        "https://overpass-api.de/api/interpreter",
 
-        "https://overpass.kumi.systems/api/interpreter",
+def scan_websites(websites):
 
-        "https://overpass.nchc.org.tw/api/interpreter"
 
-    ]
+    output=[]
 
 
 
-    for server in servers:
+    for url,title in websites.items():
+
+
+        print(
+            "Checking:",
+            url
+        )
+
+
+        platform="Unknown"
+
 
 
         try:
 
 
-            print(
-                "Trying:",
-                server
+            platform=detect_platform(
+                url
             )
-
-
-            response = requests.post(
-
-                server,
-
-                data=query,
-
-                headers={
-
-                    "User-Agent":
-                    "ShopifyBusinessFinder/1.0"
-
-                },
-
-                timeout=240
-
-            )
-
-
-
-            print(
-                "Status:",
-                response.status_code
-            )
-
-
-
-            if response.status_code != 200:
-
-                continue
-
-
-
-            if not response.text.strip():
-
-                continue
-
-
-
-            return response.json()
 
 
 
@@ -194,123 +168,19 @@ out center;
 
 
             print(
-                "Server failed:",
+                "Detector error:",
                 e
             )
 
 
-            continue
 
+        output.append({
 
+            "business": title,
 
-    print(
-        "All Overpass servers failed"
-    )
-
-
-    return None
-
-
-
-
-
-def process_businesses(data):
-
-
-    results=[]
-
-    checked=set()
-
-
-
-    if not data:
-
-        return results
-
-
-
-    for item in data.get(
-        "elements",
-        []
-    ):
-
-
-        tags=item.get(
-            "tags",
-            {}
-        )
-
-
-        name=tags.get(
-            "name"
-        )
-
-
-        if not name:
-
-            continue
-
-
-
-        key=name.lower()
-
-
-
-        if key in checked:
-
-            continue
-
-
-
-        checked.add(
-            key
-        )
-
-
-
-        website = (
-
-            tags.get("website")
-
-            or
-
-            tags.get("contact:website")
-
-            or
-
-            ""
-
-        )
-
-
-
-        platform="Not Checked"
-
-
-
-        if website:
-
-
-            try:
-
-                platform = detect_platform(
-                    website
-                )
-
-
-            except Exception:
-
-                platform="Error"
-
-
-
-        results.append({
-
-            "business": name,
+            "website": url,
 
             "postcode_area": TARGET_DISTRICT,
-
-            "website": website,
 
             "platform": platform
 
@@ -318,25 +188,17 @@ def process_businesses(data):
 
 
 
-        print(
-
-            name,
-
-            "|",
-
-            platform
-
-        )
+        time.sleep(0.5)
 
 
 
-    return results
+    return output
 
 
 
 
 
-def save_database(results):
+def save(results):
 
 
     with open(
@@ -345,20 +207,18 @@ def save_database(results):
 
         "w",
 
-        encoding="utf-8"
+        encoding="utf8"
 
-    ) as file:
+    ) as f:
 
 
         json.dump(
 
             results,
 
-            file,
+            f,
 
-            indent=2,
-
-            ensure_ascii=False
+            indent=2
 
         )
 
@@ -366,35 +226,18 @@ def save_database(results):
 
 
 
-def main():
+if __name__=="__main__":
 
 
-    boundary = get_boundary(
-        TARGET_DISTRICT
+    websites=find_websites()
+
+
+    results=scan_websites(
+        websites
     )
 
 
-    if not boundary:
-
-        print(
-            "Stopping - no boundary"
-        )
-
-        return
-
-
-
-    data = search_businesses(
-        boundary
-    )
-
-
-    results = process_businesses(
-        data
-    )
-
-
-    save_database(
+    save(
         results
     )
 
@@ -408,11 +251,3 @@ def main():
         "businesses"
 
     )
-
-
-
-
-
-if __name__ == "__main__":
-
-    main()

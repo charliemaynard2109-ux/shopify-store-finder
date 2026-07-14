@@ -9,145 +9,101 @@ TARGET_DISTRICT = "CM1"
 
 
 
-def get_postcodes(district):
+def get_boundary(district):
 
     print(
-        "Finding postcodes for:",
+        "Finding boundary for:",
         district
     )
 
 
-    url = (
-        "https://api.postcodes.io/postcodes/"
-        + district
-        + "/autocomplete"
+    url = "https://nominatim.openstreetmap.org/search"
+
+
+    params = {
+
+        "q": f"{district}, UK",
+
+        "format": "json",
+
+        "polygon_geojson": 1,
+
+        "limit": 1
+
+    }
+
+
+    response = requests.get(
+
+        url,
+
+        params=params,
+
+        headers={
+            "User-Agent":
+            "ShopifyBusinessFinder/1.0"
+        },
+
+        timeout=30
+
     )
 
 
-    try:
-
-        response = requests.get(
-            url,
-            timeout=30
-        )
-
-        data = response.json()
+    data=response.json()
 
 
-    except Exception as e:
+
+    if not data:
 
         print(
-            "Postcode lookup error:",
-            e
+            "No boundary found"
         )
 
-        return []
+        return None
 
 
 
-    results = []
+    item=data[0]
 
 
-    for item in data.get("result", []):
+    if "geojson" not in item:
 
-        if isinstance(item, dict):
+        print(
+            "No polygon available"
+        )
 
-            postcode = item.get(
-                "postcode"
-            )
-
-        else:
-
-            postcode = item
+        return None
 
 
-        if postcode:
 
-            results.append(
-                postcode
-            )
+    return item["geojson"]
+
+
+
+
+
+def search_businesses(boundary):
 
 
     print(
-        "Postcodes found:",
-        len(results)
-    )
-
-
-    return results
-
-
-
-
-
-def get_coordinates(postcode):
-
-
-    url = (
-        "https://api.postcodes.io/postcodes/"
-        + postcode
-    )
-
-
-    try:
-
-        response = requests.get(
-            url,
-            timeout=20
-        )
-
-        data = response.json()
-
-
-    except Exception:
-
-        return None
-
-
-
-    if data.get("status") != 200:
-
-        return None
-
-
-
-    result = data.get(
-        "result"
-    )
-
-
-    if not result:
-
-        return None
-
-
-
-    return (
-
-        result.get("latitude"),
-
-        result.get("longitude")
-
+        "Searching businesses..."
     )
 
 
 
+    coords=json.dumps(
+        boundary
+    )
 
 
-def query_overpass(lat, lon):
 
+    query=f"""
 
-    query = f"""
-
-[out:json][timeout:25];
+[out:json][timeout:120];
 
 (
-node["shop"](around:300,{lat},{lon});
-way["shop"](around:300,{lat},{lon});
-
-node["craft"](around:300,{lat},{lon});
-way["craft"](around:300,{lat},{lon});
-
+nwr["shop"](poly:"{coords}");
+nwr["craft"](poly:"{coords}");
 );
 
 out center;
@@ -156,7 +112,7 @@ out center;
 
 
 
-    servers = [
+    servers=[
 
         "https://overpass.kumi.systems/api/interpreter",
 
@@ -175,12 +131,13 @@ out center;
 
 
             print(
-                "Trying:",
+                "Trying",
                 server
             )
 
 
-            response = requests.post(
+
+            response=requests.post(
 
                 server,
 
@@ -191,19 +148,13 @@ out center;
                     "ShopifyBusinessFinder/1.0"
                 },
 
-                timeout=60
+                timeout=120
 
             )
 
 
 
             if response.status_code != 200:
-
-                continue
-
-
-
-            if not response.text.strip():
 
                 continue
 
@@ -218,12 +169,8 @@ out center;
 
             print(
                 "Failed:",
-                server,
-                str(e)
+                e
             )
-
-
-            continue
 
 
 
@@ -233,165 +180,140 @@ out center;
 
 
 
-def find_businesses(postcodes, district):
+def process_businesses(data):
 
 
-    businesses=[]
+    results=[]
 
     checked=set()
 
 
 
-    for index, postcode in enumerate(postcodes):
+    if not data:
+
+        return results
+
+
+
+    for item in data.get(
+        "elements",
+        []
+    ):
+
+
+        tags=item.get(
+            "tags",
+            {}
+        )
+
+
+        name=tags.get(
+            "name"
+        )
+
+
+        if not name:
+
+            continue
+
+
+
+        if name.lower() in checked:
+
+            continue
+
+
+
+        checked.add(
+            name.lower()
+        )
+
+
+
+        website=(
+
+            tags.get("website")
+
+            or
+
+            tags.get("contact:website")
+
+            or
+
+            ""
+
+        )
+
+
+        platform="Not Checked"
+
+
+
+        if website:
+
+
+            try:
+
+                platform=detect_platform(
+                    website
+                )
+
+            except:
+
+                platform="Error"
+
+
+
+        results.append({
+
+            "business":name,
+
+            "postcode_area":TARGET_DISTRICT,
+
+            "website":website,
+
+            "platform":platform
+
+        })
+
 
 
         print(
-            "Checking postcode:",
-            postcode,
-            index + 1,
-            "/",
-            len(postcodes)
+            name,
+            platform
         )
 
 
 
-        coords=get_coordinates(
-            postcode
-        )
+    return results
 
 
-        if not coords:
 
-            continue
 
 
+def main():
 
-        lat, lon = coords
 
+    boundary=get_boundary(
+        TARGET_DISTRICT
+    )
 
 
-        data=query_overpass(
-            lat,
-            lon
-        )
+    if not boundary:
 
+        return
 
 
-        if not data:
 
-            continue
+    data=search_businesses(
+        boundary
+    )
 
 
+    results=process_businesses(
+        data
+    )
 
-        for item in data.get(
-            "elements",
-            []
-        ):
-
-
-            tags=item.get(
-                "tags",
-                {}
-            )
-
-
-            name=tags.get(
-                "name"
-            )
-
-
-            if not name:
-
-                continue
-
-
-
-            key=name.lower()
-
-
-
-            if key in checked:
-
-                continue
-
-
-
-            checked.add(
-                key
-            )
-
-
-
-            website = (
-
-                tags.get("website")
-
-                or
-
-                tags.get("contact:website")
-
-                or
-
-                ""
-
-            )
-
-
-
-            platform="Not Checked"
-
-
-
-            if website:
-
-
-                try:
-
-                    platform=detect_platform(
-                        website
-                    )
-
-                except Exception:
-
-                    platform="Error"
-
-
-
-            businesses.append({
-
-                "business": name,
-
-                "postcode_area": district,
-
-                "website": website,
-
-                "platform": platform
-
-            })
-
-
-
-            print(
-
-                name,
-
-                platform
-
-            )
-
-
-
-        time.sleep(0.3)
-
-
-
-    return businesses
-
-
-
-
-
-def save_database(results):
 
 
     with open(
@@ -411,47 +333,25 @@ def save_database(results):
 
             file,
 
-            indent=2,
-
-            ensure_ascii=False
+            indent=2
 
         )
 
-
-
-
-
-if __name__ == "__main__":
-
-
-    district = TARGET_DISTRICT
-
-
-    postcodes = get_postcodes(
-        district
-    )
-
-
-    businesses = find_businesses(
-
-        postcodes,
-
-        district
-
-    )
-
-
-    save_database(
-        businesses
-    )
 
 
     print(
 
         "Saved",
 
-        len(businesses),
+        len(results),
 
         "businesses"
 
     )
+
+
+
+
+if __name__=="__main__":
+
+    main()

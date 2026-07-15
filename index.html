@@ -25,16 +25,14 @@ Shopify Business Finder
 </h1>
 
 
-
 <div class="search-box">
 
 
 <input 
-    id="search"
-    type="text"
-    placeholder="Enter postcode (e.g. CM1)"
+id="search"
+type="text"
+placeholder="Enter postcode prefix e.g. CM1"
 >
-
 
 
 <select id="platformFilter">
@@ -70,11 +68,8 @@ Unknown
 </select>
 
 
-
 <button id="searchButton">
-
 Search
-
 </button>
 
 
@@ -82,18 +77,63 @@ Search
 
 
 
+<table>
 
-<div id="results">
+
+<thead>
+
+<tr>
+
+<th>
+Shop Name
+</th>
+
+
+<th>
+Address
+</th>
+
+
+<th>
+Website
+</th>
+
+
+<th>
+Platform
+</th>
+
+
+<th>
+Confidence
+</th>
+
+
+<th>
+Score
+</th>
+
+
+</tr>
+
+
+</thead>
+
+
+<tbody id="results">
+
+
+</tbody>
+
+
+</table>
+
 
 </div>
 
 
 
-</div>
-
-
-
-<script src="src/app.js"></script>
+<script src="app.js"></script>
 
 
 </body>

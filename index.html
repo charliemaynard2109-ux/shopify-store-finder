@@ -1,56 +1,101 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
+
 <head>
+
 <meta charset="UTF-8">
+
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+
 <title>Shopify Business Finder</title>
+
 <link rel="stylesheet" href="style.css">
+
 </head>
+
 
 <body>
 
+
 <div class="container">
 
-<h1>Shopify Business Finder</h1>
 
-<p>Search UK businesses by postcode prefix</p>
+<h1>
+Shopify Business Finder
+</h1>
 
-<input id="postcode" placeholder="Example: CM1">
 
-<select id="platform">
-<option value="all">All Platforms</option>
-<option value="Shopify">Shopify</option>
-<option value="WooCommerce">WooCommerce</option>
-<option value="Magento">Magento</option>
-<option value="Wix">Wix</option>
+
+<div class="search-box">
+
+
+<input 
+    id="search"
+    type="text"
+    placeholder="Enter postcode (e.g. CM1)"
+>
+
+
+
+<select id="platformFilter">
+
+<option value="all">
+All Platforms
+</option>
+
+<option value="Shopify">
+Shopify
+</option>
+
+<option value="WooCommerce">
+WooCommerce
+</option>
+
+<option value="Magento">
+Magento
+</option>
+
+<option value="Wix">
+Wix
+</option>
+
+<option value="Squarespace">
+Squarespace
+</option>
+
+<option value="Unknown">
+Unknown
+</option>
+
 </select>
 
-<button onclick="searchBusinesses()">Search</button>
-
-<button onclick="downloadCSV()">Export CSV</button>
 
 
-<table>
+<button id="searchButton">
 
-<thead>
-<tr>
-<th>Business</th>
-<th>Address</th>
-<th>Website</th>
-<th>Platform</th>
-</tr>
-</thead>
+Search
 
-<tbody id="results">
-
-</tbody>
-
-</table>
+</button>
 
 
 </div>
 
 
-<script src="app.js"></script>
+
+
+<div id="results">
+
+</div>
+
+
+
+</div>
+
+
+
+<script src="src/app.js"></script>
+
 
 </body>
+
 </html>

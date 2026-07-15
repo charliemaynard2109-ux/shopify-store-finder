@@ -1,13 +1,20 @@
 let businesses = [];
 
 
+
 async function loadDatabase() {
+
 
     try {
 
-        const response = await fetch("database.json");
+
+        const response = await fetch(
+            "database.json"
+        );
+
 
         businesses = await response.json();
+
 
         console.log(
             "Loaded businesses:",
@@ -15,23 +22,31 @@ async function loadDatabase() {
         );
 
 
-    } catch (error) {
+    }
+
+
+    catch(error) {
+
 
         console.error(
             "Database load failed:",
             error
         );
 
+
     }
 
+
 }
+
+
 
 
 
 function searchBusinesses() {
 
 
-    const input = document
+    const postcode = document
         .getElementById("search")
         .value
         .trim()
@@ -39,24 +54,50 @@ function searchBusinesses() {
 
 
 
-    const results = businesses.filter(item => {
+    const platform = document
+        .getElementById("platformFilter")
+        .value;
 
 
-        const postcode = (
-            item.postcode_area || ""
-        ).toUpperCase();
 
 
-        return postcode.includes(input);
+    const filtered = businesses.filter(item => {
+
+
+
+        const postcodeMatch =
+
+            !postcode ||
+
+            (item.postcode_area || "")
+            .toUpperCase()
+            .includes(postcode);
+
+
+
+
+        const platformMatch =
+
+            platform === "all" ||
+
+            item.platform === platform;
+
+
+
+
+        return postcodeMatch && platformMatch;
 
 
     });
 
 
 
-    displayResults(results);
+
+    displayResults(filtered);
+
 
 }
+
 
 
 
@@ -65,32 +106,40 @@ function searchBusinesses() {
 function displayResults(results) {
 
 
-    const container = document.getElementById(
-        "results"
-    );
-
-
-    container.innerHTML = "";
+    const table = document
+        .getElementById("results");
 
 
 
-    if (results.length === 0) {
+    table.innerHTML = "";
 
 
-        container.innerHTML = `
 
-        <div class="no-results">
+
+    if(results.length === 0) {
+
+
+        table.innerHTML = `
+
+        <tr>
+
+        <td colspan="6">
 
         No businesses found
 
-        </div>
+        </td>
+
+        </tr>
 
         `;
 
 
         return;
 
+
     }
+
+
 
 
 
@@ -98,60 +147,72 @@ function displayResults(results) {
     results.forEach(item => {
 
 
-        const card = document.createElement(
-            "div"
+
+        const row = document.createElement(
+            "tr"
         );
 
 
-        card.className = "business-card";
+
+        row.innerHTML = `
+
+
+        <td>
+        ${item.business || "Unknown"}
+        </td>
 
 
 
-        card.innerHTML = `
-
-        <h3>${item.business || "Unknown Business"}</h3>
-
-        <p>
-        <strong>Postcode:</strong>
-        ${item.postcode_area || ""}
-        </p>
+        <td>
+        ${item.address || ""}
+        </td>
 
 
-        <p>
-        <strong>Website:</strong>
+
+        <td>
+
         ${
             item.website
+
             ?
+
             `<a href="${item.website}" target="_blank">
             ${item.website}
             </a>`
+
             :
-            "No website"
+
+            ""
+
         }
-        </p>
+
+        </td>
 
 
-        <p>
-        <strong>Platform:</strong>
+
+        <td>
         ${item.platform || "Unknown"}
-        </p>
+        </td>
 
 
-        <p>
-        <strong>Confidence:</strong>
+
+        <td>
         ${item.confidence || 0}%
-        </p>
+        </td>
 
 
-        <p>
-        <strong>Score:</strong>
+
+        <td>
         ${item.score || 0}
-        </p>
+        </td>
+
+
 
         `;
 
 
-        container.appendChild(card);
+
+        table.appendChild(row);
 
 
     });
@@ -163,29 +224,25 @@ function displayResults(results) {
 
 
 
+
 document.addEventListener(
     "DOMContentLoaded",
-    () => {
+    function() {
+
+
 
         loadDatabase();
 
 
-        const button =
-            document.getElementById(
-                "searchButton"
-            );
 
 
-        if (button) {
+        document
+        .getElementById("searchButton")
+        .addEventListener(
+            "click",
+            searchBusinesses
+        );
 
-
-            button.addEventListener(
-                "click",
-                searchBusinesses
-            );
-
-
-        }
 
 
     }

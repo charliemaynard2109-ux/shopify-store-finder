@@ -1,124 +1,192 @@
-let businesses=[];
+let businesses = [];
 
 
-fetch("database.json")
-.then(res=>res.json())
-.then(data=>{
-businesses=data;
-});
+async function loadDatabase() {
+
+    try {
+
+        const response = await fetch("database.json");
+
+        businesses = await response.json();
+
+        console.log(
+            "Loaded businesses:",
+            businesses.length
+        );
 
 
-function searchBusinesses(){
+    } catch (error) {
 
+        console.error(
+            "Database load failed:",
+            error
+        );
 
-let postcode=document
-.getElementById("postcode")
-.value
-.toUpperCase();
+    }
 
-
-let platform=document
-.getElementById("platform")
-.value;
-
-
-
-let results=businesses.filter(x=>{
-
-
-let postcodeMatch =
-x.postcode &&
-x.postcode.startsWith(postcode);
+}
 
 
 
-let platformMatch =
-platform==="all" ||
-x.platform===platform;
+function searchBusinesses() {
+
+
+    const input = document
+        .getElementById("search")
+        .value
+        .trim()
+        .toUpperCase();
 
 
 
-return postcodeMatch && platformMatch;
+    const results = businesses.filter(item => {
 
 
-});
+        const postcode = (
+            item.postcode_area || ""
+        ).toUpperCase();
 
 
-display(results);
+        return postcode.includes(input);
+
+
+    });
+
+
+
+    displayResults(results);
+
+}
+
+
+
+
+
+function displayResults(results) {
+
+
+    const container = document.getElementById(
+        "results"
+    );
+
+
+    container.innerHTML = "";
+
+
+
+    if (results.length === 0) {
+
+
+        container.innerHTML = `
+
+        <div class="no-results">
+
+        No businesses found
+
+        </div>
+
+        `;
+
+
+        return;
+
+    }
+
+
+
+
+    results.forEach(item => {
+
+
+        const card = document.createElement(
+            "div"
+        );
+
+
+        card.className = "business-card";
+
+
+
+        card.innerHTML = `
+
+        <h3>${item.business || "Unknown Business"}</h3>
+
+        <p>
+        <strong>Postcode:</strong>
+        ${item.postcode_area || ""}
+        </p>
+
+
+        <p>
+        <strong>Website:</strong>
+        ${
+            item.website
+            ?
+            `<a href="${item.website}" target="_blank">
+            ${item.website}
+            </a>`
+            :
+            "No website"
+        }
+        </p>
+
+
+        <p>
+        <strong>Platform:</strong>
+        ${item.platform || "Unknown"}
+        </p>
+
+
+        <p>
+        <strong>Confidence:</strong>
+        ${item.confidence || 0}%
+        </p>
+
+
+        <p>
+        <strong>Score:</strong>
+        ${item.score || 0}
+        </p>
+
+        `;
+
+
+        container.appendChild(card);
+
+
+    });
 
 
 }
 
 
 
-function display(data){
 
 
-let table=document.getElementById("results");
+document.addEventListener(
+    "DOMContentLoaded",
+    () => {
 
-table.innerHTML="";
-
-
-data.forEach(x=>{
-
-
-table.innerHTML += `
-
-<tr>
-
-<td>${x.business}</td>
-
-<td>${x.address || ""}</td>
-
-<td>
-<a href="${x.website}" target="_blank">
-${x.website}
-</a>
-</td>
-
-<td>${x.platform}</td>
-
-</tr>
+        loadDatabase();
 
 
-`;
+        const button =
+            document.getElementById(
+                "searchButton"
+            );
 
 
-});
+        if (button) {
 
 
-}
+            button.addEventListener(
+                "click",
+                searchBusinesses
+            );
 
 
-
-function downloadCSV(){
-
-
-let csv="Business,Address,Website,Platform\n";
+        }
 
 
-businesses.forEach(x=>{
-
-
-csv += `"${x.business}","${x.address}","${x.website}","${x.platform}"\n`;
-
-
-});
-
-
-let blob=new Blob([csv],{type:"text/csv"});
-
-
-let url=URL.createObjectURL(blob);
-
-
-let a=document.createElement("a");
-
-a.href=url;
-
-a.download="businesses.csv";
-
-a.click();
-
-
-}
+    }
+);
